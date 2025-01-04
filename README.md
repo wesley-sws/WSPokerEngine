@@ -6,8 +6,8 @@ The project is evolving into a reusable library, designed for developers to inte
 
 ## TODOs
 - [x] Implement core logic and a working simulator for Texas Hold'em.
-- [] Refactor into a reusable library for poker simulations with a clean API.
-- [] Write comprehensive unit tests for key components, notably hand evaluation, pot distribution, and betting mechanics.
+- [ ] Refactor into a reusable library for poker simulations with a clean API.
+- [ ] Write comprehensive unit tests for key components, notably hand evaluation, pot distribution, and betting mechanics.
 
 ## Ideas for Future Development
 - **Support for Variants**: Extend Library to include other poker variants like Omaha or Seven-Card Stud.
