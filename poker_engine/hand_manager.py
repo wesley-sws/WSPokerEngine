@@ -39,6 +39,7 @@ class HandManager:
         heapq.heapify(self.balance_heap)
         self.highest_balance = -heapq.heappop(self.balance_heap)
         self.snd_highest_balance = -heapq.heappop(self.balance_heap)
+        self.winners = []
     
     def setup_blinds(self, small_blind_i, blinds: list[int]) -> int:
         for blind_index, player_id in enumerate((
@@ -61,7 +62,7 @@ class HandManager:
             "game_num": self.game_num,
             "round_num": self.round_num,
             "revealed_comm_cards": self.comm_cards[:self.round_to_comm_cards[self.round_num]],
-            "players_status": [player.get_player_status(False) for player in self.players]
+            "players_status": [player.get_player_status() for player in self.players]
         }
 
     def round(self):
@@ -120,8 +121,7 @@ class HandManager:
                 }
                 '''
                 user_input = yield {
-                    "round_status": self.get_status(),
-                    "player_status": player.get_player_status(True),
+                    "player_status": player.get_player_status(),
                     "current_bet": self.curr_bet,
                     "options": options,
                     "last_action_result": last_action_result # None at first yield
@@ -181,8 +181,8 @@ class HandManager:
                     "new_balance": player.balance
                 }
             curr_player_i = (curr_player_i + 1) % self.player_num
-        self.round_num += 1
         self.start_player_i = (self.start_player_i + 1) % self.player_num
+        self.round_num += 1
 
     def pot_distribution(self, players_in: list[Player], player_hand_strength: list[int]):
         '''yields winners'''
@@ -190,7 +190,6 @@ class HandManager:
         winner_rank = []
         for i in range(len(players_in)):
             id, strength = players_in[i].id, player_hand_strength[i]
-            print(f"Player {id} has stength {strength}")
             while winner_rank and winner_rank[-1][0] < strength:
                 winner_rank.pop()
             if not winner_rank or strength < winner_rank[-1][0]:
@@ -231,23 +230,21 @@ class HandManager:
         player_hand_strength: list[int] = evaluate_hand.get_players_strength(players_in)
         return self.pot_distribution(players_in, player_hand_strength)
 
-    def play(self) -> list[int]:
-        for _ in range(4):
-            self.round()
-            if self.num_players_folded == self.player_num - 1:
-                winner: Player = next(player for player in self.players if not player.folded)
-                total_in = sum(map(lambda player: player.money_in, self.players))
-                winner.balance += total_in
-                print(
-                    f"Player {winner.id} won an {total_in}!"
-                    "Your new balance is " + str(winner.balance)
-                )
-                return
-            elif self.num_players_folded + self.num_players_gone_max == self.player_num:
-                break
-        print("TIME FOR SHOWDOWN!!!")
-        self.round_num = 3
-        self.showdown()
-        print("FINAL BALANCE")
-        print('\n'.join((f"Player {i} has {player.balance}") for i, player in enumerate(self.players)))
-        return [player.balance for player in self.players]
+    def advance(self):
+        '''advance into the next round (from pre-flop, flop, turn, river to showdown)'''
+        if self.round_num > 3:
+            return
+        yield from self.round()
+        if self.num_players_folded == self.player_num - 1:
+            self.round_num = 4 # game ends
+            winner: Player = next(player for player in self.players if not player.folded)
+            total_in = sum(player.money_in for player in self.players)
+            winner.balance += total_in
+            self.winners = [{
+                "id": winner.id,
+                "pot_count": 0, # 0 for main pot
+                "new_balance": winner.balance
+            }]
+        elif self.num_players_folded + self.num_players_gone_max == self.player_num or self.round_num == 4:
+            self.round_num = 4
+            self.winners = self.showdown()

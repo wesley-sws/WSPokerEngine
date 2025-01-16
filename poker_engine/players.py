@@ -10,10 +10,5 @@ class Player:
     folded: bool = False
     gone_max: bool = False
 
-    def get_player_status(self, include_hand: bool) -> dict:
-        # Convert all attributes to a dictionary
-        res = asdict(self)
-        # Optionally exclude 'hands'
-        if not include_hand:
-            res.pop("hands")
-        return res
+    def get_player_status(self) -> dict:
+        return asdict(self)
