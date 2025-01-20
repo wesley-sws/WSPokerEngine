@@ -1,8 +1,8 @@
 from random import randint
 import heapq
-from cards import Card
-from players import Player
-import evaluate_hand
+from .cards import Card
+from .players import Player
+from . import evaluate_hand
 
 class HandManager:
     # Raise Rule - The minimum raise must be at least equal to the size of the previous raise
@@ -185,6 +185,7 @@ class HandManager:
             curr_player_i = (curr_player_i + 1) % self.player_num
         self.start_player_i = (self.start_player_i + 1) % self.player_num
         self.round_num += 1
+        return last_action_result
 
     def pot_distribution(self, players_in: list[Player], player_hand_strength: list[int]):
         '''yields winners'''
@@ -229,19 +230,21 @@ class HandManager:
         players_in = [player for player in self.players if not player.folded]
         assert len(players_in) > 0
         players_in.sort(key=lambda player: player.money_in)
-        player_hand_strength: list[int] = evaluate_hand.get_players_strength(players_in)
-        return self.pot_distribution(players_in, player_hand_strength)
+        player_hand_strength: list[int] = evaluate_hand.get_players_strength(
+            self.comm_cards, players_in
+        )
+        return list(self.pot_distribution(players_in, player_hand_strength))
 
     def finalize_hand(self):
         """
         Checks if the game has ended and performs game-finalizing logic.
         Returns True if the game is over, False otherwise.
         """
-        if self.round_num > 3:
+        if self.round_num > 4:
             return True
         
         if self.num_players_folded == self.player_num - 1:
-            self.round_num = 4 # game ends
+            self.round_num = 5 # game ends
             winner: Player = next(player for player in self.players if not player.folded)
             total_in = sum(player.money_in for player in self.players)
             winner.balance += total_in
@@ -251,7 +254,7 @@ class HandManager:
                 "new_balance": winner.balance
             }]
         elif self.num_players_folded + self.num_players_gone_max == self.player_num or self.round_num == 4:
-            self.round_num = 4
+            self.round_num = 5
             self.winners = self.showdown()
         else:
             return False
@@ -262,5 +265,6 @@ class HandManager:
             raise ValueError("Game has not ended yet")
         return self.winners
 
-    def get_players_balance(self):
-        return (player.balance for player in self.players)
+    @property
+    def players_balance(self) -> list[int]:
+        return [player.balance for player in self.players]

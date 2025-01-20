@@ -1,8 +1,8 @@
 import heapq
 from collections import defaultdict
 from enum import IntEnum
-from players import Player
-from cards import Card
+from .players import Player
+from .cards import Card
 
 true_rank_convert = {
     'A': 12, '2': 0, '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, 

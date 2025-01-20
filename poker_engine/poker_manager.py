@@ -1,4 +1,4 @@
-from hand_manager import HandManager
+from .hand_manager import HandManager
 
 class PokerManager:
     def __init__(self, players: int, blinds : list[int],
@@ -16,7 +16,7 @@ class PokerManager:
     
     def get_status(self):
         # note only gets updated AFTER a round
-        return self.__dict__()
+        return self.__dict__
     
     def advance(self):
         while len(self.players_info) > 1:
@@ -25,7 +25,7 @@ class PokerManager:
                 self.small_blind_player_i, self.blinds, self.game_num
             )
             yield new_hand
-            self.update_player_info(new_hand.get_players_balance())
+            self.update_player_info(new_hand.players_balance)
 
     def update_player_info(self, updated_balance):
         new_players_info = []

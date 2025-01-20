@@ -1,4 +1,4 @@
-from cards import Card
+from .cards import Card
 from dataclasses import dataclass, asdict
 
 @dataclass
