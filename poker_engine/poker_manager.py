@@ -1,3 +1,5 @@
+from hand_manager import HandManager
+
 class PokerManager:
     def __init__(self, players: int, blinds : list[int],
                  player_balance: list[int],
@@ -12,13 +14,20 @@ class PokerManager:
         self.blinds = blinds
         self.game_num = 0
     
-    def _run_session(self) -> bool:
-        print(self.players_info)
-        newSession = self.HandSession(
-            self.players_info,
-            self.small_blind_player_i, self.blinds, self.game_num
-        )
-        updated_balance = newSession.play()
+    def get_status(self):
+        # note only gets updated AFTER a round
+        return self.__dict__()
+    
+    def advance(self):
+        while len(self.players_info) > 1:
+            new_hand = HandManager(
+                self.players_info,
+                self.small_blind_player_i, self.blinds, self.game_num
+            )
+            yield new_hand
+            self.update_player_info(new_hand.get_players_balance())
+
+    def update_player_info(self, updated_balance):
         new_players_info = []
         next_small_blind = None
         for i, balance in enumerate(updated_balance):
@@ -27,27 +36,5 @@ class PokerManager:
                     next_small_blind = len(new_players_info)
                 new_players_info.append((self.players_info[i][0], balance))
         self.game_num += 1
-        if len(new_players_info) == 1:
-            id, balance = new_players_info[0]
-            print(
-                f"WE HAVE A WINNER! Player {id} is the only one left with a "
-                f"balance of {balance}. Congrats!"
-            )
-            return True
         self.small_blind_player_i = 0 if next_small_blind is None else next_small_blind
         self.players_info = new_players_info
-        return False
-
-
-    def play(self, round_limit=None):
-        if round_limit is None:
-            while input("Would you like to start a new round (Y for yes, anything else for no)?\n") == 'Y':
-                if self._run_session():
-                    break
-        else:
-            for _ in range(round_limit):
-                if self._run_session():
-                    break
-
-# example
-# TexasHoldem(5, [5, 10], [200, 300, 400, 500, 600]).play()
