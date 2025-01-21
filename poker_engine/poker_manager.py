@@ -14,7 +14,8 @@ class PokerManager:
         self.blinds = blinds
         self.game_num = 0
     
-    def get_status(self):
+    @property
+    def status(self):
         # note only gets updated AFTER a round
         return self.__dict__
     

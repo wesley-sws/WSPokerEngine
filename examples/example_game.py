@@ -58,14 +58,14 @@ def get_options_str(options_dict) -> str:
 
 game: PokerManager = PokerManager(5, [5, 10], [200, 300, 400, 500, 600])
 for hand in game.advance():
-    game_status = game.get_status()
+    game_status = game.status
     print("Game Number", game_status["game_num"])
     for (id, balance) in game_status["players_info"]:
         print(f"Player {id} has balance {balance}")
     print("Small blind player:", game_status["small_blind_player_i"])
     print("The blinds are:", game_status["blinds"])
     while not hand.finalize_hand():
-        hand_status = hand.get_status()
+        hand_status = hand.status
         print(f"Round Number", hand_status["round_num"])
         comm = hand_status["revealed_comm_cards"]
         print(

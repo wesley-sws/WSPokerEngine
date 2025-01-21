@@ -10,5 +10,6 @@ class Player:
     folded: bool = False
     gone_max: bool = False
 
-    def get_player_status(self) -> dict:
+    @property
+    def status(self) -> dict:
         return asdict(self)

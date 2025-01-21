@@ -57,12 +57,13 @@ class HandManager:
                 self.curr_bet = blind_actual
         return (small_blind_i + 2) % self.player_num
     
-    def get_status(self):
+    @property
+    def status(self):
         return {
             "game_num": self.game_num,
             "round_num": self.round_num,
             "revealed_comm_cards": self.comm_cards[:self.round_to_comm_cards[self.round_num]],
-            "players_status": [player.get_player_status() for player in self.players]
+            "players_status": [player.status for player in self.players]
         }
 
     def round(self):
@@ -123,7 +124,7 @@ class HandManager:
                 }
                 '''
                 user_input = yield {
-                    "player_status": player.get_player_status(),
+                    "player_status": player.status,
                     "current_bet": self.curr_bet,
                     "options": options,
                     "last_action_result": last_action_result # None at first yield
