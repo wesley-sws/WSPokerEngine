@@ -55,23 +55,27 @@ def get_hand_strength(suite_map: dict[str, list[int]], rank_map: dict[int, int])
         if lowest_card := check_straight(flush_ranks) is not None:
             return (HandRank.STRAIGHT_FLUSH, lowest_card)
     
-    rank_count_heap, rank_heap = [], []
+    count_rank_max = count_rank_max2 = None
+    
+
+    rank_heap = []
     for rank, count in rank_map.items():
-        rank_count_heap.append((-count, -rank))
+        if count_rank_max is None or (count, rank) >= count_rank_max:
+            count_rank_max, count_rank_max2 = (count, rank), count_rank_max
+        elif count_rank_max2 is None or (count, rank) >= count_rank_max2:
+            count_rank_max2 = (count, rank)
         rank_heap.append(-rank)
-    heapq.heapify(rank_count_heap)
+    
     heapq.heapify(rank_heap)
 
-    count1, rank1 = heapq.heappop(rank_count_heap)
-    count1, rank1 = -count1, -rank1
+    count1, rank1 = count_rank_max
 
     if count1 == 4:
         ranks = [rank1]
         modify_ranks(ranks, 2, rank_heap)
         return (HandRank.FOUR_OF_A_KIND, get_hand_value(ranks))
     
-    count2, rank2 = heapq.heappop(rank_count_heap)
-    count2, rank2 = -count2, -rank2
+    count2, rank2 = count_rank_max2
 
     if count1 == 3 and count2 == 2:
         return (HandRank.FULL_HOUSE, 13 * rank1 + rank2)

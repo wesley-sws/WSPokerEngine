@@ -6,7 +6,7 @@ application using basic console input and output.
 General Pattern of use (after creating game: PokerManager):
 
 for hand in game.advance():
-    <may want to do hand.get_status() here>
+    <may want to do game.get_status() here>
     while not hand.finalize_hand():
         <may want to do hand.get_status() here>
         curr_round = hand.round()
@@ -35,7 +35,7 @@ def get_player_status_str(player_dict, include_hand: bool) -> str:
         f'{"" if player_dict["folded"] else "not yet "}' + "folded."
     ]
     if include_hand:
-        res.append(f"\nYour hands are {player_dict["hands"][0]}, and {player_dict["hands"][0]}")
+        res.append(f"\nYour hands are {player_dict["hands"][0]}, and {player_dict["hands"][1]}")
     return ''.join(res)
 
 options_map = {
@@ -69,7 +69,7 @@ for hand in game.advance():
         print(f"Round Number", hand_status["round_num"])
         comm = hand_status["revealed_comm_cards"]
         print(
-            "The Community Cards "
+            "The Community Cards " +
             "have not been revealed" if len(comm) == 0 else 
             f"are {', '.join(map(str, comm))}"
         )
@@ -101,5 +101,6 @@ for hand in game.advance():
                     f"Player {last_action["id"]} has put {last_action["last_put"]} and now has {last_action["new_balance"]}"
                 )
                 break
+
     assert len(hand.winners) > 0
     print(hand.winners)

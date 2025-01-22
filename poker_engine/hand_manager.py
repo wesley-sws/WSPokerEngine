@@ -65,6 +65,40 @@ class HandManager:
             "revealed_comm_cards": self.comm_cards[:self.round_to_comm_cards[self.round_num]],
             "players_status": [player.status for player in self.players]
         }
+    
+    def _get_available_options(self, curr_player: Player, last_full_raise, remaining_to_call, only_richest):
+        '''
+        Let us consider cases when all in, check, and raise should not be a player's option
+        Check
+        - player doesn't have enough to check so can only go all in
+        All in 
+        - player is the sole wealthiest player (so can only raise up to the next wealthiest person instead)
+        RAISE
+        - player doesn't have enough to raise an adequate amount
+        - player is the sole wealthiest player and second wealthiest player has gone all in, so can't raise nor go all in
+        More cases for RAISE:
+        - player is the richest person and the remaining balance of the next 
+        richest player is less than the last full raise, hence player can raise by the 
+        amount that the next richest player has left
+        corner case handled implcitly: if remaining to call is negative (small blinds > big blinds)
+        '''
+        options = {
+            "F": True, "A": False, "C": False, "R": None
+        }
+        if not only_richest:
+            options["A"] = True
+        if curr_player.balance > remaining_to_call: # exclusive as if equal only allow all-in
+            options["C"] = True
+            if last_full_raise + remaining_to_call < curr_player.balance and not only_richest or \
+                only_richest and self.curr_bet < self.snd_highest_balance:
+                raise_min, raise_max = last_full_raise, curr_player.balance - remaining_to_call
+                if only_richest:
+                    raise_min = min(last_full_raise, self.snd_highest_balance - self.curr_bet)
+                    raise_max = self.snd_highest_balance - self.curr_bet
+                options["R"] = (raise_min, raise_max)
+        
+        return options
+
 
     def round(self):
         if self.round_num > 3:
@@ -81,41 +115,12 @@ class HandManager:
             initial_balance = player.balance
             # F for fold, C for Check, A for All in, R,<N> to raise by N
             if not player.folded and not player.gone_max:
-                '''
-                Let us consider cases when all in, check, and raise should not be a player's option
-                Check
-                - player doesn't have enough to check so can only go all in
-                All in 
-                - player is the sole wealthiest player (so can only raise up to the next wealthiest person instead)
-                RAISE
-                - player doesn't have enough to raise an adequate amount
-                - player is the sole wealthiest player and second wealthiest player has gone all in, so can't raise nor go all in
-                More cases for RAISE:
-                - player is the richest person and the remaining balance of the next 
-                    richest player is less than the last full raise, hence player can raise by the 
-                    amount that the next richest player has left
-                '''
-                # corner case handled implicitly:
-                # if remaining to call is negative (small blinds > big blinds)
                 only_richest = self.highest_balance == player.balance + player.money_in \
                     and self.highest_balance != self.snd_highest_balance
-                options = {
-                    "F": True, "A": False, "C": False, "R": None
-                }
-                if not only_richest:
-                    options["A"] = True
-
                 remaining_to_call = self.curr_bet - player.money_in
-                if player.balance > remaining_to_call: # exclusive as if equal only allow all-in
-                    options["C"] = True
-                    if last_full_raise + remaining_to_call < player.balance and not only_richest or \
-                        only_richest and self.curr_bet < self.snd_highest_balance:
-                        raise_min, raise_max = last_full_raise, player.balance - remaining_to_call
-                        if only_richest:
-                            raise_min = min(last_full_raise, self.snd_highest_balance - self.curr_bet)
-                            raise_max = self.snd_highest_balance - self.curr_bet
-                        options["R"] = (raise_min, raise_max)
-                
+                options = self._get_available_options(
+                    player, last_full_raise, remaining_to_call, only_richest
+                )
                 '''
                 Expected user_input format:
                 {
@@ -161,6 +166,7 @@ class HandManager:
                         self.num_players_gone_max += 1
                 else:
                     new_raised = user_input["amount"]
+                    raise_min, raise_max = options["R"]
                     if raise_min > new_raised or new_raised > raise_max:
                         raise ValueError
                     '''
@@ -188,12 +194,12 @@ class HandManager:
         self.round_num += 1
         return last_action_result
 
-    def pot_distribution(self, players_in: list[Player], player_hand_strength: list[int]):
-        '''yields winners'''
-        assert len(players_in) == len(player_hand_strength)
+    def pot_distribution(self, players_in: list[Player], players_hand_strength: list[int]):
+        # yields winners
+        assert len(players_in) == len(players_hand_strength)
         winner_rank = []
         for i in range(len(players_in)):
-            id, strength = players_in[i].id, player_hand_strength[i]
+            id, strength = players_in[i].id, players_hand_strength[i]
             while winner_rank and winner_rank[-1][0] < strength:
                 winner_rank.pop()
             if not winner_rank or strength < winner_rank[-1][0]:
@@ -216,7 +222,7 @@ class HandManager:
                         "new_balance": player.balance
                     }
                 money_checked = player.money_in
-                winners.remove(i)
+                winners.remove(player.id)
                 if len(winners) == 0:
                     winners_i += 1
                     pot_count += 1
@@ -231,10 +237,10 @@ class HandManager:
         players_in = [player for player in self.players if not player.folded]
         assert len(players_in) > 0
         players_in.sort(key=lambda player: player.money_in)
-        player_hand_strength: list[int] = evaluate_hand.get_players_strength(
+        players_hand_strength: list[int] = evaluate_hand.get_players_strength(
             self.comm_cards, players_in
         )
-        return list(self.pot_distribution(players_in, player_hand_strength))
+        return list(self.pot_distribution(players_in, players_hand_strength))
 
     def finalize_hand(self):
         """
@@ -254,7 +260,7 @@ class HandManager:
                 "pot_count": 0, # 0 for main pot
                 "new_balance": winner.balance
             }]
-        elif self.num_players_folded + self.num_players_gone_max == self.player_num or self.round_num == 4:
+        elif self.num_players_folded + self.num_players_gone_max >= self.player_num - 1 or self.round_num == 4:
             self.round_num = 5
             self.winners = self.showdown()
         else:
