@@ -5,6 +5,7 @@ from .players import Player
 from . import evaluate_hand
 
 class HandManager:
+    round_to_comm_cards = [0, 3, 4, 5]
     # Raise Rule - The minimum raise must be at least equal to the size of the previous raise
     # The current implementation is for the TexasHoldem Variant, but more to be potentially implemented
     def __init__(
@@ -32,7 +33,6 @@ class HandManager:
         self.comm_cards: list[Card] = [Card(card) for card in all_cards_list]
         self.curr_bet = self.round_num = 0
         self.start_player_i = self.setup_blinds(small_blind_player_i, blinds)
-        self.round_to_comm_cards = [0, 3, 4, 5]
         # now find the players of highest and second highest balance (use case 
         # can be seen later in the round function)
         self.balance_heap = [-balance for _, balance in players_info]
@@ -62,7 +62,7 @@ class HandManager:
         return {
             "game_num": self.game_num,
             "round_num": self.round_num,
-            "revealed_comm_cards": self.comm_cards[:self.round_to_comm_cards[self.round_num]],
+            "revealed_comm_cards": self.comm_cards[:self.round_to_comm_cards[min(3, self.round_num)]],
             "players_status": [player.status for player in self.players]
         }
     

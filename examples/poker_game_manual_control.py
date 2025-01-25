@@ -27,35 +27,7 @@ Note both the hand and game variables provide a get_status method that can
 be called anytime
 """
 from poker_engine.poker_manager import PokerManager
-
-def get_player_status_str(player_dict, include_hand: bool) -> str:
-    res = [
-        f"Player {player_dict["id"]}: Your balance is {player_dict["balance"]}, ",
-        f"have spent {player_dict["money_in"]} in this game and have ",
-        f'{"" if player_dict["folded"] else "not yet "}' + "folded."
-    ]
-    if include_hand:
-        res.append(f"\nYour hands are {player_dict["hands"][0]}, and {player_dict["hands"][1]}")
-    return ''.join(res)
-
-options_map = {
-    'F': "Fold (F)",
-    'A': "Go all in (A)",
-    "C": "Call on current bet (C)"
-}
-def get_options_str(options_dict) -> str:
-    options = []
-    for k, val in options_dict.items():
-        if val:
-            if k == "R":
-                assert len(val) == 2
-                options.append(f"Raise by minimum {val[0]}, maximum {val[1]} (R,V)")
-            else:
-                options.append(options_map[k])
-    return ', '.join(options)
-
-
-
+from . import utils
 game: PokerManager = PokerManager(5, [5, 10], [200, 300, 400, 500, 600])
 for hand in game.advance():
     game_status = game.status
@@ -74,7 +46,7 @@ for hand in game.advance():
             f"are {', '.join(map(str, comm))}"
         )
         for player_dict in hand_status["players_status"]:
-            print(get_player_status_str(player_dict, False))
+            print(utils.get_player_status_str(player_dict, False))
         curr_round = hand.round()
         state = next(curr_round)
         while True:
@@ -82,11 +54,11 @@ for hand in game.advance():
                 print(
                     f"Player {last_action["id"]} has put {last_action["last_put"]} and now has {last_action["new_balance"]}"
                 )
-            print("Your Turn", get_player_status_str(state["player_status"], True))
+            print("Your Turn", utils.get_player_status_str(state["player_status"], True))
             print("The current bet is", state["current_bet"])
             user_input = input(
                 "Your options are " + 
-                get_options_str(state["options"]) + '\n'
+                utils.get_options_str(state["options"]) + '\n'
             )
             if user_input[0] not in state["options"]:
                 raise ValueError
@@ -101,6 +73,8 @@ for hand in game.advance():
                     f"Player {last_action["id"]} has put {last_action["last_put"]} and now has {last_action["new_balance"]}"
                 )
                 break
-
-    assert len(hand.winners) > 0
-    print(hand.winners)
+    for winner in hand.winners:
+        pot = "Main Pot" if winner["pot_count"] == 0 else f"Side Pot {winner["pot_count"]}"
+        print(
+            f"Player {winner["id"]} has won {pot}! Your new balance is {winner["new_balance"]}."
+        )
