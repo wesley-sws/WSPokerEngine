@@ -1,44 +1,50 @@
 from .hand_manager import HandManager
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 
 class PokerManager:
-    def __init__(self, players: int, blinds : list[int],
+    def __init__(self, blinds : list[int],
                  player_balance: list[int],
                  player_ids: list[int] | None = None,
                  small_blind_i: int = 0):
         assert len(player_balance) > 1
         assert len(blinds) == 2
-        assert 5 + players * 2 <= 52
+        assert 5 + len(player_balance) * 2 <= 52
         player_ids = player_ids or list(range(len(player_balance)))
-        self.players_info = list(zip(player_ids, player_balance))
+        self._players_info = list(zip(player_ids, player_balance))
         self.small_blind_player_i = small_blind_i
         self.blinds = blinds
-        self.game_num = 0
+        self._game_num = 0
     
     @property
-    def status(self):
-        return self.__dict__
+    def status(self) -> dict:
+        return {
+            "players_info": self._players_info,
+            "small_blind_player_i": self.small_blind_player_i,
+            "blinds": self.blinds,
+            "game_num": self._game_num
+        }
     
-    def advance(self):
-        while len(self.players_info) > 1:
+    def advance(self) -> Generator[HandManager, None, None]:
+        while len(self._players_info) > 1:
             new_hand = HandManager(
-                self.players_info,
-                self.small_blind_player_i, self.blinds, self.game_num
+                self._players_info,
+                self.small_blind_player_i, self.blinds
             )
             yield new_hand
             self.update_player_info(new_hand.players_balance)
 
-    def update_player_info(self, updated_balance):
+    def update_player_info(self, updated_balance: int):
         new_players_info = []
         next_small_blind = None
         for i, balance in enumerate(updated_balance):
             if balance != 0:
                 if next_small_blind is None and i > self.small_blind_player_i:
                     next_small_blind = len(new_players_info)
-                new_players_info.append((self.players_info[i][0], balance))
-        self.game_num += 1
-        self.small_blind_player_i = 0 if next_small_blind is None else next_small_blind
-        self.players_info = new_players_info
+                new_players_info.append((self._players_info[i][0], balance))
+        self._game_num += 1
+        self.small_blind_player_i = 0 if next_small_blind is None \
+                                        else next_small_blind
+        self._players_info = new_players_info
 
     def play_game(
         self,
@@ -64,7 +70,8 @@ class PokerManager:
                 curr_round = hand.round()
                 state = next(curr_round)
                 while True:
-                    user_dict = on_player_turn(state, hand.status, self.status)  # The caller must send the user_dict back
+                    # The caller must send the user_dict back
+                    user_dict = on_player_turn(state, hand.status, self.status)
                     try:
                         state = curr_round.send(user_dict)
                     except StopIteration as e:

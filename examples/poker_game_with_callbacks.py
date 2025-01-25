@@ -1,3 +1,10 @@
+"""
+Run PYTHONPATH=. python examples/poker_game_with_ballbacks.py from root directory
+
+This file demonstrates how to use the library to create a text-based poker 
+application using basic console input and output through the play_game method
+in the PokerManager class.
+"""
 from poker_engine.poker_manager import PokerManager
 import utils
 
@@ -50,7 +57,7 @@ def on_game_end(winners, *_):
         )
 
 # Assuming PokerManager is properly initialized
-game = PokerManager(5, [5, 10], [200, 300, 400, 500, 600])
+game = PokerManager([5, 10], [200, 300, 400, 500, 600])
 game.play_game(
     on_player_turn=on_player_turn,
     on_new_hand=on_new_hand,

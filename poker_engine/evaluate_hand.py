@@ -4,7 +4,7 @@ from enum import IntEnum
 from .players import Player
 from .cards import Card
 
-true_rank_convert = {
+_true_rank_convert = {
     'A': 12, '2': 0, '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, 
     '8': 6, '9': 7, '10': 8, 'J': 9, 'Q': 10, 'K': 11
 }
@@ -20,7 +20,7 @@ class HandRank(IntEnum):
     FOUR_OF_A_KIND = 7
     STRAIGHT_FLUSH = 8
 
-def check_straight(ranks: list[int]) -> int | None:
+def _check_straight(ranks: list[int]) -> int | None:
     # Pre: ranks is sorted in descending order, len(ranks) >= 5
     for i in range(len(ranks) - 4):  # Need at least 5 cards for a straight
         if ranks[i] - ranks[i+4] == 4:
@@ -29,14 +29,14 @@ def check_straight(ranks: list[int]) -> int | None:
         return 0
     return None
 
-def get_hand_value(ranks: list[int]) -> int:
+def _get_hand_value(ranks: list[int]) -> int:
     _sum, multiplier = 0, 13
     for i, rank in enumerate(ranks):
         _sum += multiplier ** (len(ranks) - i - 1) * rank
         multiplier -= 1
     return _sum
 
-def modify_ranks(ranks: list[int], target_len: int, rank_heap: list[int]):
+def _modify_ranks(ranks: list[int], target_len: int, rank_heap: list[int]):
     # modifies the ranks list in-place
     to_exclude = set(ranks)
     while len(ranks) < target_len:
@@ -44,7 +44,8 @@ def modify_ranks(ranks: list[int], target_len: int, rank_heap: list[int]):
         if next_rank not in to_exclude:
             ranks.append(next_rank)
 
-def get_hand_strength(suite_map: dict[str, list[int]], rank_map: dict[int, int]) -> int:
+def _get_hand_strength(suite_map: dict[str, list[int]], 
+                       rank_map: dict[int, int]) -> int:
     flush = flush_ranks = None
     for suite, ranks in suite_map.items():
         if len(ranks) >= 5:
@@ -52,7 +53,7 @@ def get_hand_strength(suite_map: dict[str, list[int]], rank_map: dict[int, int])
 
     if flush is not None:
         # check straight/royal flush
-        if lowest_card := check_straight(flush_ranks) is not None:
+        if lowest_card := _check_straight(flush_ranks) is not None:
             return (HandRank.STRAIGHT_FLUSH, lowest_card)
     
     count_rank_max = count_rank_max2 = None
@@ -72,8 +73,8 @@ def get_hand_strength(suite_map: dict[str, list[int]], rank_map: dict[int, int])
 
     if count1 == 4:
         ranks = [rank1]
-        modify_ranks(ranks, 2, rank_heap)
-        return (HandRank.FOUR_OF_A_KIND, get_hand_value(ranks))
+        _modify_ranks(ranks, 2, rank_heap)
+        return (HandRank.FOUR_OF_A_KIND, _get_hand_value(ranks))
     
     count2, rank2 = count_rank_max2
 
@@ -81,29 +82,30 @@ def get_hand_strength(suite_map: dict[str, list[int]], rank_map: dict[int, int])
         return (HandRank.FULL_HOUSE, 13 * rank1 + rank2)
 
     if flush is not None:
-        return (HandRank.FLUSH, get_hand_value(flush_ranks[:5]))
+        return (HandRank.FLUSH, _get_hand_value(flush_ranks[:5]))
 
-    if lowest_card := check_straight(sorted(rank_map.keys(), reverse=True)) is not None:
+    if lowest_card := _check_straight(sorted(rank_map.keys(), reverse=True)) is not None:
         return (HandRank.STRAIGHT, lowest_card)
 
     if count1 == 3:
         ranks = [rank1]
-        modify_ranks(ranks, 3, rank_heap)
-        return (HandRank.THREE_OF_A_KIND, get_hand_value(ranks))
+        _modify_ranks(ranks, 3, rank_heap)
+        return (HandRank.THREE_OF_A_KIND, _get_hand_value(ranks))
 
     if count1 == 2 and count2 == 2:
         ranks = [rank1, rank2]
-        modify_ranks(ranks, 3, rank_heap)
-        return (HandRank.TWO_PAIR, get_hand_value(ranks))
+        _modify_ranks(ranks, 3, rank_heap)
+        return (HandRank.TWO_PAIR, _get_hand_value(ranks))
 
     if count1 == 2:
         ranks = [rank1]
-        modify_ranks(ranks, 4, rank_heap)
-        return (HandRank.ONE_PAIR, get_hand_value(ranks))
+        _modify_ranks(ranks, 4, rank_heap)
+        return (HandRank.ONE_PAIR, _get_hand_value(ranks))
     
-    return (HandRank.HIGH_CARD, get_hand_value([-heapq.heappop(rank_heap) for _ in range(5)]))
+    return (HandRank.HIGH_CARD, _get_hand_value([-heapq.heappop(rank_heap) for _ in range(5)]))
 
-def get_players_strength(comm_cards: list[Card], players_in: list[Player]) -> list[tuple[int, tuple[HandRank, int]]]:
+def get_players_strength(comm_cards: list[Card], players_in: list[Player]
+                         ) -> list[tuple[int, tuple[HandRank, int]]]:
     '''
     Hand Rankings (best to worst) and Determining Tie Breaker within the same ranking 
     Royal Flush - always tie
@@ -124,19 +126,19 @@ def get_players_strength(comm_cards: list[Card], players_in: list[Player]) -> li
     player_strengths: list[int] = []
 
     for card in comm_cards:
-        rank = true_rank_convert[card.rank]
+        rank = _true_rank_convert[card.rank]
         suite_map[card.suite].add(rank)
         rank_map[rank] += 1
 
     for player in players_in:
         card1, card2 = player.hands
         for card in (card1, card2):
-            rank = true_rank_convert[card.rank]
+            rank = _true_rank_convert[card.rank]
             suite_map[card.suite].add(rank)
             rank_map[rank] += 1
-        player_strengths.append(get_hand_strength(suite_map, rank_map))
+        player_strengths.append(_get_hand_strength(suite_map, rank_map))
         for card in (card1, card2):
-            rank = true_rank_convert[card.rank]
+            rank = _true_rank_convert[card.rank]
             suite_map[card.suite].remove(rank)
             rank_map[rank] -= 1
             if rank_map[rank] == 0:

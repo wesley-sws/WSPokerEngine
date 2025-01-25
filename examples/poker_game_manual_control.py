@@ -1,7 +1,7 @@
 """
-Run PYTHONPATH=. python examples/example_game.py from root directory
+Run PYTHONPATH=. python examples/poker_game_manual_control.py from root directory
 This file demonstrates how to use the library to create a text-based poker 
-application using basic console input and output.
+application using basic console input and output through manual control.
 
 General Pattern of use (after creating game: PokerManager):
 
@@ -27,8 +27,8 @@ Note both the hand and game variables provide a get_status method that can
 be called anytime
 """
 from poker_engine.poker_manager import PokerManager
-from . import utils
-game: PokerManager = PokerManager(5, [5, 10], [200, 300, 400, 500, 600])
+import utils
+game: PokerManager = PokerManager([5, 10], [200, 300, 400, 500, 600])
 for hand in game.advance():
     game_status = game.status
     print("Game Number", game_status["game_num"])
