@@ -49,24 +49,17 @@ class PokerManager:
     def play_game(
         self,
         on_player_turn: Callable[[dict, dict, dict], dict],
-        on_new_game: Callable[[dict], None] | None = None,
         on_new_hand: Callable[[dict, dict], None] | None = None,
         on_round_start: Callable[[dict, dict], None] | None = None,
         on_round_end: Callable[[dict, dict, dict], None] | None = None,
-        on_hand_end: Callable[[dict, dict], None] | None = None,
-        on_game_end: Callable[[list[dict], dict, dict], None] | None = None
+        on_hand_end: Callable[[dict, dict, dict], None] | None = None,
     ):
-        if on_new_game:
-            on_new_game(self.status)
-
         for hand in self.advance():
             if on_new_hand:
                 on_new_hand(hand.status, self.status)
-
             while not hand.finalize_hand():
                 if on_round_start:
                     on_round_start(hand.status, self.status)
-
                 curr_round = hand.round()
                 state = next(curr_round)
                 while True:
@@ -79,9 +72,5 @@ class PokerManager:
                         if on_round_end:
                             on_round_end(last_action, hand.status, self.status)
                         break
-
-                if on_hand_end:
-                    on_hand_end(hand.status, self.status)
-
-            if on_game_end:
-                on_game_end(hand.winners, hand.status, self.status)
+            if on_hand_end:
+                on_hand_end(hand.winners, hand.status, self.status)

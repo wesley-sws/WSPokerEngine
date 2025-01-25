@@ -49,7 +49,7 @@ def on_round_end(last_action, *_):
         f"Player {last_action["id"]} has put {last_action["last_put"]} and now has {last_action["new_balance"]}"
     )
 
-def on_game_end(winners, *_):
+def on_hand_end(winners, *_):
     for winner in winners:
         pot = "Main Pot" if winner["pot_count"] == 0 else f"Side Pot {winner["pot_count"]}"
         print(
@@ -63,5 +63,5 @@ game.play_game(
     on_new_hand=on_new_hand,
     on_round_start=on_round_start,
     on_round_end=on_round_end,
-    on_game_end=on_game_end
+    on_hand_end=on_hand_end
 )
