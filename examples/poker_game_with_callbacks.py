@@ -8,6 +8,14 @@ in the PokerManager class.
 from poker_engine.poker_manager import PokerManager
 import utils
 
+def print_comm_cards(hand_status):
+    comm = hand_status["revealed_comm_cards"]
+    print("The Community Cards", end=" ")
+    print(
+        "have not been revealed" if len(comm) == 0 else 
+        f"are {', '.join(map(str, comm))}"
+    )
+
 def on_new_hand(_, game_status):
     print("Game Number", game_status["game_num"])
     for (id, balance) in game_status["players_info"]:
@@ -17,12 +25,7 @@ def on_new_hand(_, game_status):
 
 def on_round_start(hand_status, _):
     print(f"Round Number", hand_status["round_num"])
-    comm = hand_status["revealed_comm_cards"]
-    print(
-        "The Community Cards " +
-        "have not been revealed" if len(comm) == 0 else 
-        f"are {', '.join(map(str, comm))}"
-    )
+    print_comm_cards(hand_status)
     for player_dict in hand_status["players_status"]:
         print(utils.get_player_status_str(player_dict, False))
 
@@ -49,12 +52,20 @@ def on_round_end(last_action, *_):
         f"Player {last_action["id"]} has put {last_action["last_put"]} and now has {last_action["new_balance"]}"
     )
 
-def on_hand_end(winners, *_):
+def on_hand_end(winners, hand_status, _):
+    print_comm_cards(hand_status)
     for winner in winners:
         pot = "Main Pot" if winner["pot_count"] == 0 else f"Side Pot {winner["pot_count"]}"
-        print(
-            f"Player {winner["id"]} has won {pot}! Your new balance is {winner["new_balance"]}."
-        )
+        if winner["hand_strength"] is None:
+            print(
+                f"Player {winner['id']} has won {pot} (all other players folded)! " +
+                f"Your new balance is {winner['new_balance']}."
+            )
+        else:
+            print(
+                f"Player {winner["id"]} has won {pot} with {winner["hand_strength"]}! " +
+                f"Your new balance is {winner['new_balance']}."
+            )
 
 # Assuming PokerManager is properly initialized
 game = PokerManager([5, 10], [200, 300, 400, 500, 600])

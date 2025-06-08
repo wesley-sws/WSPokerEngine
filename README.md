@@ -4,6 +4,10 @@ WSPokerEngine is a Python-based poker game engine that currently provides a text
 
 The project is evolving into a reusable library, designed for developers to integrate poker simulations into their own applications. Future versions will focus on modularity and extensibility, allowing support for additional poker variants, AI opponents, advanced statistics, and more.
 
+## TO RUN EXAMPLES
+- run "pip install -e ."
+- run "python examples/poker_game_with_callbacks.py" or "python examples/poker_game_manual_control.py"
+
 ## TODOs
 - [x] Implement core logic and a working simulator for Texas Hold'em.
 - [x] Refactor into a reusable library for poker simulations with a clean API.

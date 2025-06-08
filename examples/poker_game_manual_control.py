@@ -7,9 +7,9 @@ General Pattern of use (after creating game: PokerManager):
 
 for hand in game.advance():
     <may want to do game.get_status() here>
-    while not hand.finalize_hand():
+    while not hand.is_complete():
         <may want to do hand.get_status() here>
-        curr_round = hand.round()
+        curr_round = hand.betting_round()
         state = next(curr_round)
         while True:
             <note state["lastAction"] is None if and only if this is the first 
@@ -36,7 +36,7 @@ for hand in game.advance():
         print(f"Player {id} has balance {balance}")
     print("Small blind player:", game_status["small_blind_player_i"])
     print("The blinds are:", game_status["blinds"])
-    while not hand.finalize_hand():
+    while not hand.is_complete():
         hand_status = hand.status
         print(f"Round Number", hand_status["round_num"])
         comm = hand_status["revealed_comm_cards"]
@@ -47,7 +47,7 @@ for hand in game.advance():
         )
         for player_dict in hand_status["players_status"]:
             print(utils.get_player_status_str(player_dict, False))
-        curr_round = hand.round()
+        curr_round = hand.betting_round()
         state = next(curr_round)
         while True:
             if (last_action := state["last_action_result"]) is not None:
@@ -75,6 +75,13 @@ for hand in game.advance():
                 break
     for winner in hand.winners:
         pot = "Main Pot" if winner["pot_count"] == 0 else f"Side Pot {winner["pot_count"]}"
-        print(
-            f"Player {winner["id"]} has won {pot}! Your new balance is {winner["new_balance"]}."
-        )
+        if winner["hand_strength"] is None:
+            print(
+                f"Player {winner['id']} has won {pot} (all other players folded)! " +
+                f"Your new balance is {winner['new_balance']}."
+            )
+        else:
+            print(
+                f"Player {winner["id"]} has won {pot} with {winner["hand_strength"]}! " +
+                f"Your new balance is {winner['new_balance']}."
+            )

@@ -1,6 +1,17 @@
 from .hand_manager import HandManager
 from collections.abc import Callable, Generator
 
+'''
+Rules regarding rounds
+In Texas Hold'em, 
+there are four rounds of betting: pre-flop, flop, turn, and river
+Seating order around table - clockwise
+Dealer (D) -> Small Blind (SB) -> Big Blind (BB) -> next player (UTG)
+After each game, the D/SB/BB shifts one seat clockwise
+Pre-flop: UTG acts first
+Post-flop (Flop/Turn/River): First remaining player clockwise from the SB (inclusive)
+'''
+
 class PokerManager:
     def __init__(self, blinds : list[int],
                  player_balance: list[int],
@@ -57,10 +68,10 @@ class PokerManager:
         for hand in self.advance():
             if on_new_hand:
                 on_new_hand(hand.status, self.status)
-            while not hand.finalize_hand():
+            while not hand.is_complete():
                 if on_round_start:
                     on_round_start(hand.status, self.status)
-                curr_round = hand.round()
+                curr_round = hand.betting_round()
                 state = next(curr_round)
                 while True:
                     # The caller must send the user_dict back

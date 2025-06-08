@@ -3,7 +3,9 @@ from collections import defaultdict
 from enum import IntEnum
 from .players import Player
 from .cards import Card
-
+'''
+TODO - optimization in complexity
+'''
 _true_rank_convert = {
     'A': 12, '2': 0, '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, 
     '8': 6, '9': 7, '10': 8, 'J': 9, 'Q': 10, 'K': 11
@@ -19,6 +21,8 @@ class HandRank(IntEnum):
     FULL_HOUSE = 6
     FOUR_OF_A_KIND = 7
     STRAIGHT_FLUSH = 8
+    def __str__(self):
+        return self.name
 
 def _check_straight(ranks: list[int]) -> int | None:
     # Pre: ranks is sorted in descending order, len(ranks) >= 5
@@ -45,7 +49,7 @@ def _modify_ranks(ranks: list[int], target_len: int, rank_heap: list[int]):
             ranks.append(next_rank)
 
 def _get_hand_strength(suite_map: dict[str, list[int]], 
-                       rank_map: dict[int, int]) -> int:
+                       rank_map: dict[int, int]) -> tuple[HandRank, int]:
     flush = flush_ranks = None
     for suite, ranks in suite_map.items():
         if len(ranks) >= 5:
@@ -105,7 +109,7 @@ def _get_hand_strength(suite_map: dict[str, list[int]],
     return (HandRank.HIGH_CARD, _get_hand_value([-heapq.heappop(rank_heap) for _ in range(5)]))
 
 def get_players_strength(comm_cards: list[Card], players_in: list[Player]
-                         ) -> list[tuple[int, tuple[HandRank, int]]]:
+                         ) -> list[tuple[HandRank, int]]:
     '''
     Hand Rankings (best to worst) and Determining Tie Breaker within the same ranking 
     Royal Flush - always tie

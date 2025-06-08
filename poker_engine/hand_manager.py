@@ -7,7 +7,7 @@ from . import evaluate_hand
 
 class HandManager:
     _round_to_comm_cards = [0, 3, 4, 5]
-    # Raise Rule - The minimum raise must be at least equal to the size of the previous raise
+    # Raise Rule - The minimum raise must be at least equal to the size of the previous raise IN THE SAME BETTING ROUND
     # The current implementation is for the TexasHoldem Variant, but more to be potentially implemented
     def __init__(
         self, players_info: list[int], 
@@ -21,7 +21,7 @@ class HandManager:
             all_cards.add(randint(0, 13 * 4 - 1))
         all_cards_list = list(all_cards)
         # initialise players
-        self._players: Player = [
+        self._players: list[Player] = [
             Player(id, balance, 0, 
                 (
                     Card(all_cards_list.pop()),
@@ -34,11 +34,13 @@ class HandManager:
         self._curr_bet = self._round_num = 0
         self._start_player_i = self._setup_blinds(small_blind_player_i, blinds)
         # now find the players of highest and second highest balance (use case 
-        # can be seen later in the round function)
+        # can be seen later in the betting_round function)
         self._balance_heap = [-balance for _, balance in players_info]
         heapq.heapify(self._balance_heap)
         self._highest_balance = -heapq.heappop(self._balance_heap)
         self._snd_highest_balance = -heapq.heappop(self._balance_heap)
+        self._small_blind_player = small_blind_player_i
+        self.big_blind = blinds[1]
         self._winners = []
     
     def _setup_blinds(self, small_blind_i: int, blinds: list[int]) -> int:
@@ -73,9 +75,11 @@ class HandManager:
         Check
         - player doesn't have enough to check so can only go all in
         All in 
-        - player is the sole wealthiest player (so can only raise up to the next wealthiest person instead)
+        - player is the sole wealthiest player 
+        (essentially going all in is equivalent raising up to the next wealthiest person, 
+        so we just don't show the all in option for clearer UI)
         RAISE
-        - player doesn't have enough to raise an adequate amount
+        - player doesn't have enough to raise the minimum amount required
         - player is the sole wealthiest player and second wealthiest player has gone all in, so can't raise nor go all in
         More cases for RAISE:
         - player is the richest person and the remaining balance of the next 
@@ -102,9 +106,9 @@ class HandManager:
 
     def _handle_user_option(self, options: dict, user_option: dict, 
             player: Player, last_full_raise: int, remaining_to_call: int, 
-            only_richest: bool) -> tuple[bool, bool, int]:
+            only_richest: bool) -> tuple[bool, int, bool]:
         # return last_full_raise and whether player has raised to be updated
-        if user_option["action"] not in options:
+        if user_option["action"] not in options or not options[user_option["action"]]:
             raise ValueError
         
         player_raised = False
@@ -159,7 +163,7 @@ class HandManager:
         return player_raised, last_full_raise, False
 
 
-    def round(self) -> Generator[dict, dict, dict]:
+    def betting_round(self) -> Generator[dict, dict, dict]:
         '''
         NOTE: There seems to be a bug at the moment on round concerning folding
         and going all in, more to be done on this, can test just by 
@@ -170,10 +174,9 @@ class HandManager:
         # to bypass the initial condition to enter for loop at first occurence
         ending_player_i = None
         curr_player_i = self._start_player_i
-        last_full_raise = self._curr_bet
+        last_full_raise = self.big_blind
         last_action_result = None
-        while ending_player_i is None or curr_player_i != ending_player_i \
-            and self._num_players_folded == self._player_num - 1:
+        while ending_player_i is None or curr_player_i != ending_player_i:
             if ending_player_i is None:
                 ending_player_i = curr_player_i
             player: Player = self._players[curr_player_i]
@@ -215,12 +218,13 @@ class HandManager:
                 if to_break:
                     break
             curr_player_i = (curr_player_i + 1) % self._player_num
-        self._start_player_i = (self._start_player_i + 1) % self._player_num
+        self._start_player_i = self._small_blind_player
         self._round_num += 1
         return last_action_result
 
     def _pot_distribution(self, players_in: list[Player], 
-                          players_hand_strength: list[int]
+                          players_hand_strength: 
+                            list[tuple[evaluate_hand.HandRank, int]]
                           ) -> Generator[dict, None, None]:
         # yields winners
         assert len(players_in) == len(players_hand_strength)
@@ -246,7 +250,8 @@ class HandManager:
                     yield {
                         "id": player.id,
                         "pot_count": pot_count, # 0 for main pot
-                        "new_balance": player.balance
+                        "new_balance": player.balance,
+                        "hand_strength": players_hand_strength[i][0]
                     }
                 money_checked = player.money_in
                 winners.remove(player.id)
@@ -264,12 +269,13 @@ class HandManager:
         players_in = [player for player in self._players if not player.folded]
         assert len(players_in) > 0
         players_in.sort(key=lambda player: player.money_in)
-        players_hand_strength: list[int] = evaluate_hand.get_players_strength(
+        players_hand_strength: list[tuple[evaluate_hand.HandRank, int]] = \
+          evaluate_hand.get_players_strength(
             self._comm_cards, players_in
         )
         return self._pot_distribution(players_in, players_hand_strength)
 
-    def finalize_hand(self) -> bool:
+    def is_complete(self) -> bool:
         """
         Checks if the game has ended and performs game-finalizing logic.
         Returns True if the game is over, False otherwise.
@@ -280,14 +286,19 @@ class HandManager:
         if self._num_players_folded == self._player_num - 1:
             self._round_num = 5 # game ends
             winner: Player = next(player for player in self._players if not player.folded)
+            ''' TODO
+            Can improve complexity by having total_pot as a field and adding to
+            it at _handle_user_option instead of summing it here
+            '''
             total_in = sum(player.money_in for player in self._players)
             winner.balance += total_in
             self._winners = ({
                 "id": winner.id,
                 "pot_count": 0, # 0 for main pot
-                "new_balance": winner.balance
+                "new_balance": winner.balance,
+                "hand_strength": None
             },) 
-        elif self._num_players_folded + self._num_players_gone_max == self._player_num or self._round_num == 4:
+        elif self._num_players_folded + self._num_players_gone_max >= self._player_num - 1 or self._round_num == 4:
             self._round_num = 5
             self._winners = self._showdown()
         else:
