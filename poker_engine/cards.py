@@ -3,6 +3,7 @@ class Card:
     SUITES = ['D', 'C', 'H', 'S']
     SUITE_TO_LONG_FORM = {'D': "Diamonds", 'C': "Clubs", 'H': "Hearts", 'S': "Spades"}
     RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
+    DECK_SIZE = 52
     def __init__(self, card_val):
         q, r = divmod(card_val, 4)
         self.card_val = card_val

@@ -7,6 +7,7 @@ in the PokerManager class.
 """
 from poker_engine.poker_manager import PokerManager
 import utils
+from poker_engine.action_type import *
 
 def print_comm_cards(hand_status):
     comm = hand_status["revealed_comm_cards"]
@@ -40,9 +41,7 @@ def on_player_turn(state, *_):
         "Your options are " + 
         utils.get_options_str(state["options"]) + '\n'
     )
-    if user_input[0] not in state["options"]:
-        raise ValueError
-    user_dict = {"action": user_input[0]}
+    user_dict = {"action": utils.initial_to_ActionType[user_input[0]]}
     if user_input[0] == "R":
         user_dict["amount"] = int(user_input[2:])
     return user_dict

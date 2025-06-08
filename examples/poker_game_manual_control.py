@@ -60,9 +60,10 @@ for hand in game.advance():
                 "Your options are " + 
                 utils.get_options_str(state["options"]) + '\n'
             )
-            if user_input[0] not in state["options"]:
+            if user_input[0] not in utils.initial_to_ActionType:
                 raise ValueError
-            user_dict = {"action": user_input[0]}
+            user_action = utils.initial_to_ActionType[user_input[0]]
+            user_dict = {"action": user_action}
             if user_input[0] == "R":
                 user_dict["amount"] = int(user_input[2:])
             try:

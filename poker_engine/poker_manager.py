@@ -9,8 +9,11 @@ Seating order around table - clockwise
 Dealer (D) -> Small Blind (SB) -> Big Blind (BB) -> next player (UTG)
 After each game, the D/SB/BB shifts one seat clockwise
 Pre-flop: UTG acts first
-Post-flop (Flop/Turn/River): First remaining player clockwise from the SB (inclusive)
+Post-flop (Flop/Turn/River)
+: First remaining player clockwise from the SB (inclusive)
 '''
+from .cards import Card
+from .hand_manager import HandManager
 
 class PokerManager:
     def __init__(self, blinds : list[int],
@@ -19,7 +22,7 @@ class PokerManager:
                  small_blind_i: int = 0):
         assert len(player_balance) > 1
         assert len(blinds) == 2
-        assert 5 + len(player_balance) * 2 <= 52
+        assert HandManager.COMM_CARDS + len(player_balance) * HandManager.PLAYER_CARDS <= Card.DECK_SIZE
         player_ids = player_ids or list(range(len(player_balance)))
         self._players_info = list(zip(player_ids, player_balance))
         self.small_blind_player_i = small_blind_i

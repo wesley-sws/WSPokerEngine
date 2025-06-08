@@ -4,21 +4,28 @@ import heapq
 from .cards import Card
 from .players import Player
 from . import evaluate_hand
+from .action_type import *
 
 class HandManager:
-    _round_to_comm_cards = [0, 3, 4, 5]
+    COMM_CARDS = 5
+    PLAYER_CARDS = 2
+    MAX_PLAYERS = 9
+    MIN_PLAYERS = 2
+    ROUNDS = 4
+    _round_to_comm_cards = [0, 3, 4, 5]    
     # Raise Rule - The minimum raise must be at least equal to the size of the previous raise IN THE SAME BETTING ROUND
     # The current implementation is for the TexasHoldem Variant, but more to be potentially implemented
     def __init__(
         self, players_info: list[int], 
         small_blind_player_i: int, blinds: list[int]
     ):
+        assert self.MIN_PLAYERS <= len(players_info) <= self.MAX_PLAYERS
         self._player_num = len(players_info)
         self._num_players_gone_max = self._num_players_folded = 0
         # initialise cards
         all_cards: set[int] = set()
-        while len(all_cards) < 5 + 2 * self._player_num:
-            all_cards.add(randint(0, 13 * 4 - 1))
+        while len(all_cards) < self.COMM_CARDS + self.PLAYER_CARDS * self._player_num:
+            all_cards.add(randint(0, Card.DECK_SIZE - 1))
         all_cards_list = list(all_cards)
         # initialise players
         self._players: list[Player] = [
@@ -60,7 +67,7 @@ class HandManager:
         return (small_blind_i + 2) % self._player_num
     
     @property
-    def status(self):
+    def status(self) -> dict:
         return {
             "round_num": self._round_num,
             "revealed_comm_cards": self._comm_cards[:self._round_to_comm_cards[min(3, self._round_num)]],
@@ -88,19 +95,22 @@ class HandManager:
         corner case handled implcitly: if remaining to call is negative (small blinds > big blinds)
         '''
         options = {
-            "F": True, "A": False, "C": False, "R": None
+            ActionType.FOLD: True, 
+            ActionType.ALL_IN: False, 
+            ActionType.CALL: False, 
+            ActionType.RAISE: None
         }
         if not only_richest:
-            options["A"] = True
+            options[ActionType.ALL_IN] = True
         if curr_player.balance > remaining_to_call: # exclusive as if equal only allow all-in
-            options["C"] = True
+            options[ActionType.CALL] = True
             if last_full_raise + remaining_to_call < curr_player.balance and not only_richest or \
                 only_richest and self._curr_bet < self._snd_highest_balance:
                 raise_min, raise_max = last_full_raise, curr_player.balance - remaining_to_call
                 if only_richest:
                     raise_min = min(last_full_raise, self._snd_highest_balance - self._curr_bet)
                     raise_max = self._snd_highest_balance - self._curr_bet
-                options["R"] = (raise_min, raise_max)
+                options[ActionType.RAISE] = (raise_min, raise_max)
         
         return options
 
@@ -108,11 +118,11 @@ class HandManager:
             player: Player, last_full_raise: int, remaining_to_call: int, 
             only_richest: bool) -> tuple[bool, int, bool]:
         # return last_full_raise and whether player has raised to be updated
-        if user_option["action"] not in options or not options[user_option["action"]]:
+        if not options[user_option["action"]]:
             raise ValueError
         
         player_raised = False
-        if user_option["action"] == 'F':
+        if user_option["action"] == ActionType.FOLD:
             player.folded = True
             self._num_players_folded += 1
             if self._num_players_folded == self._player_num - 1:
@@ -124,7 +134,7 @@ class HandManager:
                 self._highest_balance = self._snd_highest_balance
             if player_total >= self._snd_highest_balance: # player is highest or 2nd highest
                 self._snd_highest_balance = -heapq.heappop(self._balance_heap)
-        elif user_option["action"] == 'A':
+        elif user_option["action"] == ActionType.ALL_IN:
             player.money_in += player.balance
             if player.money_in > self._curr_bet:
                 self._curr_bet = player.money_in
@@ -133,7 +143,7 @@ class HandManager:
             player.balance = 0
             player.gone_max = True
             self._num_players_gone_max += 1
-        elif user_option["action"] == 'C':
+        elif user_option["action"] == ActionType.CALL:
             player.balance -= remaining_to_call
             player.money_in += remaining_to_call
             assert player.money_in == self._curr_bet
@@ -142,7 +152,7 @@ class HandManager:
                 self._num_players_gone_max += 1
         else:
             new_raised = user_option["amount"]
-            raise_min, raise_max = options["R"]
+            raise_min, raise_max = options[ActionType.RAISE]
             if raise_min > new_raised or new_raised > raise_max:
                 raise ValueError
             '''
@@ -169,7 +179,7 @@ class HandManager:
         and going all in, more to be done on this, can test just by 
         playing a game where you keep going all in / check / fold
         '''
-        if self._round_num > 3:
+        if self._round_num >= self.ROUNDS:
             raise ValueError("Game has ended")
         # to bypass the initial condition to enter for loop at first occurence
         ending_player_i = None
@@ -181,7 +191,7 @@ class HandManager:
                 ending_player_i = curr_player_i
             player: Player = self._players[curr_player_i]
             initial_balance = player.balance
-            # F for fold, C for Check, A for All in, R,<N> to raise by N
+            # F for Fold, C for Check, A for All in, R,<N> to Raise by N
             if not player.folded and not player.gone_max:
                 only_richest = self._highest_balance == player.balance + player.money_in \
                     and self._highest_balance != self._snd_highest_balance
@@ -192,7 +202,7 @@ class HandManager:
                 '''
                 Expected user_option format:
                 {
-                "action": str # one of "F", "A", "C", "R">,
+                "action": str # one of Fold, All in, Call or Raise>,
                 "amount": int # required if action is "R" (ignore otherwise)
                 }
                 '''
@@ -238,6 +248,12 @@ class HandManager:
             else: # strength == winner_rank[-1][0]
                 winner_rank[-1][1].add(id)
 
+        '''
+        TODO
+        INCORRECT pot distribution logic below - doesn't take into account money
+        of people who have put in money but folded
+        '''
+
         # initialise and begin pot distribution
         winners_i, winners = 0, winner_rank[0][1]
         player_num = len(players_in)
@@ -280,11 +296,11 @@ class HandManager:
         Checks if the game has ended and performs game-finalizing logic.
         Returns True if the game is over, False otherwise.
         """
-        if self._round_num > 4:
+        if self._round_num > self.ROUNDS:
             return True
         
         if self._num_players_folded == self._player_num - 1:
-            self._round_num = 5 # game ends
+            self._round_num = self.ROUNDS + 1
             winner: Player = next(player for player in self._players if not player.folded)
             ''' TODO
             Can improve complexity by having total_pot as a field and adding to
@@ -298,8 +314,9 @@ class HandManager:
                 "new_balance": winner.balance,
                 "hand_strength": None
             },) 
-        elif self._num_players_folded + self._num_players_gone_max >= self._player_num - 1 or self._round_num == 4:
-            self._round_num = 5
+        elif self._num_players_folded + self._num_players_gone_max >= self._player_num - 1 \
+          or self._round_num == self.ROUNDS:
+            self._round_num = self.ROUNDS + 1
             self._winners = self._showdown()
         else:
             return False
