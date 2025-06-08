@@ -5,7 +5,12 @@ from .cards import Card
 from .players import Player
 from . import evaluate_hand
 from .action_type import *
+from typing import Optional
 
+'''
+TODO
+consider what happens to the blinds when players have less than the blinds
+'''
 class HandManager:
     COMM_CARDS = 5
     PLAYER_CARDS = 2
@@ -203,7 +208,7 @@ class HandManager:
                 Expected user_option format:
                 {
                 "action": str # one of Fold, All in, Call or Raise>,
-                "amount": int # required if action is "R" (ignore otherwise)
+                "amount": int # required if action is ActionType.RAISE (ignore otherwise)
                 }
                 '''
                 user_option = yield {
@@ -232,15 +237,18 @@ class HandManager:
         self._round_num += 1
         return last_action_result
 
-    def _pot_distribution(self, players_in: list[Player], 
+    def _pot_distribution(self, players: list[Player], 
                           players_hand_strength: 
-                            list[tuple[evaluate_hand.HandRank, int]]
+                            list[Optional[tuple[evaluate_hand.HandRank, int]]]
                           ) -> Generator[dict, None, None]:
         # yields winners
-        assert len(players_in) == len(players_hand_strength)
+        # PRE - players sorted by the money they put into the game
+        assert len(players) == len(players_hand_strength)
         winner_rank = []
-        for i in range(len(players_in)):
-            id, strength = players_in[i].id, players_hand_strength[i]
+        for i in range(len(players)):
+            id, strength = players[i].id, players_hand_strength[i]
+            if strength is None: # or players[i].folded
+                continue
             while winner_rank and winner_rank[-1][0] < strength:
                 winner_rank.pop()
             if not winner_rank or strength < winner_rank[-1][0]:
@@ -248,20 +256,20 @@ class HandManager:
             else: # strength == winner_rank[-1][0]
                 winner_rank[-1][1].add(id)
 
-        '''
-        TODO
-        INCORRECT pot distribution logic below - doesn't take into account money
-        of people who have put in money but folded
-        '''
-
         # initialise and begin pot distribution
         winners_i, winners = 0, winner_rank[0][1]
-        player_num = len(players_in)
+        player_num = len(players)
         winner_cumm = money_checked = pot_count = 0
-        for i, player in enumerate(players_in):
+        for i, player in enumerate(players):
             if player.id in winners:
                 winner_cumm += (player.money_in - money_checked) * (player_num - i) / len(winners)
                 if winner_cumm > 0:
+                    '''
+                    If two players put in the same amount into the game, and the
+                    one with better hand happened to be in front of the one with
+                    worse hand in the players list, they will still appear in the
+                    winner_rank but winner_cumm == 0 so it shouldn't yield
+                    '''
                     player.balance += int(winner_cumm)
                     yield {
                         "id": player.id,
@@ -282,14 +290,12 @@ class HandManager:
                 winner_cumm += (player.money_in - money_checked) / len(winners)
             
     def _showdown(self) -> Generator[dict, None, None]:
-        players_in = [player for player in self._players if not player.folded]
-        assert len(players_in) > 0
-        players_in.sort(key=lambda player: player.money_in)
+        players_by_money_in = sorted(self._players, key=lambda player: player.money_in)
         players_hand_strength: list[tuple[evaluate_hand.HandRank, int]] = \
           evaluate_hand.get_players_strength(
-            self._comm_cards, players_in
+            self._comm_cards, players_by_money_in
         )
-        return self._pot_distribution(players_in, players_hand_strength)
+        return self._pot_distribution(players_by_money_in, players_hand_strength)
 
     def is_complete(self) -> bool:
         """

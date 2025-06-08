@@ -3,6 +3,7 @@ from collections import defaultdict
 from enum import IntEnum
 from .players import Player
 from .cards import Card
+from typing import Optional
 '''
 TODO - optimization in complexity
 '''
@@ -108,8 +109,8 @@ def _get_hand_strength(suite_map: dict[str, list[int]],
     
     return (HandRank.HIGH_CARD, _get_hand_value([-heapq.heappop(rank_heap) for _ in range(5)]))
 
-def get_players_strength(comm_cards: list[Card], players_in: list[Player]
-                         ) -> list[tuple[HandRank, int]]:
+def get_players_strength(comm_cards: list[Card], 
+                         players: list[Player]) -> list[Optional[tuple[HandRank, int]]]:
     '''
     Hand Rankings (best to worst) and Determining Tie Breaker within the same ranking 
     Royal Flush - always tie
@@ -134,7 +135,10 @@ def get_players_strength(comm_cards: list[Card], players_in: list[Player]
         suite_map[card.suite].add(rank)
         rank_map[rank] += 1
 
-    for player in players_in:
+    for player in players:
+        if player.folded:
+            player_strengths.append(None)
+            continue
         card1, card2 = player.hands
         for card in (card1, card2):
             rank = _true_rank_convert[card.rank]
