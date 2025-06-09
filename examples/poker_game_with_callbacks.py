@@ -1,5 +1,5 @@
 """
-Run PYTHONPATH=. python examples/poker_game_with_ballbacks.py from root directory
+Run PYTHONPATH=. python examples/poker_game_with_callbacks.py from root directory
 
 This file demonstrates how to use the library to create a text-based poker 
 application using basic console input and output through the play_game method
@@ -67,7 +67,7 @@ def on_hand_end(winners, hand_status, _):
             )
 
 # Assuming PokerManager is properly initialized
-game = PokerManager([5, 10], [200, 300, 400, 500, 600])
+game = PokerManager([5, 10], [6, 2, 400, 500, 600])
 game.play_game(
     on_player_turn=on_player_turn,
     on_new_hand=on_new_hand,

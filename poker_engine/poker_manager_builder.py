@@ -1,5 +1,6 @@
 from typing import Optional
 from .poker_manager import PokerManager
+from .hand_manager import HandManager
 
 class PokerManagerBuilder:
     """Builder pattern for creating PokerManager instances with validation."""
@@ -74,10 +75,10 @@ class PokerManagerBuilder:
         if self._blinds is None:
             raise ValueError("Blinds must be set using with_blinds()")
         
-        if len(self._player_balances) < 2:
+        if len(self._player_balances) < HandManager.MIN_PLAYERS:
             raise ValueError("At least 2 players required")
         
-        if len(self._player_balances) > 9:  # Assuming max from HandManager
+        if len(self._player_balances) > HandManager.MAX_PLAYERS:  # Assuming max from HandManager
             raise ValueError("Maximum 9 players allowed")
         
         if self._small_blind_index >= len(self._player_balances):

@@ -3,6 +3,8 @@ Run PYTHONPATH=. python examples/poker_game_manual_control.py from root director
 This file demonstrates how to use the library to create a text-based poker 
 application using basic console input and output through manual control.
 
+Manual control allows more flexibility, eg can increase blinds every 10 minutes
+
 General Pattern of use (after creating game: PokerManager):
 
 for hand in game.advance():

@@ -1,4 +1,4 @@
-from random import randint
+import random
 from collections.abc import Iterable, Generator
 import heapq
 from .cards import Card
@@ -7,10 +7,7 @@ from . import evaluate_hand
 from .action_type import *
 from typing import Optional
 
-'''
-TODO
-consider what happens to the blinds when players have less than the blinds
-'''
+
 class HandManager:
     COMM_CARDS = 5
     PLAYER_CARDS = 2
@@ -27,22 +24,22 @@ class HandManager:
         assert self.MIN_PLAYERS <= len(players_info) <= self.MAX_PLAYERS
         self._player_num = len(players_info)
         self._num_players_gone_max = self._num_players_folded = 0
-        # initialise cards
-        all_cards: set[int] = set()
-        while len(all_cards) < self.COMM_CARDS + self.PLAYER_CARDS * self._player_num:
-            all_cards.add(randint(0, Card.DECK_SIZE - 1))
-        all_cards_list = list(all_cards)
+
+        cards_id: list[Card] = random.sample(
+            Card.ALL_CARDS_ID, 
+            self.COMM_CARDS + self.PLAYER_CARDS * self._player_num
+        )
         # initialise players
         self._players: list[Player] = [
-            Player(id, balance, 0, 
+            Player(id, balance, balance, 0, 
                 (
-                    Card(all_cards_list.pop()),
-                    Card(all_cards_list.pop())
+                    Card(cards_id.pop()),
+                    Card(cards_id.pop())
                 )
             )
             for id, balance in players_info
         ]
-        self._comm_cards: list[Card] = [Card(card) for card in all_cards_list]
+        self._comm_cards: list[Card] = [Card(card) for card in cards_id]
         self._curr_bet = self._round_num = 0
         self._start_player_i = self._setup_blinds(small_blind_player_i, blinds)
         # now find the players of highest and second highest balance (use case 
@@ -56,6 +53,15 @@ class HandManager:
         self._winners = []
     
     def _setup_blinds(self, small_blind_i: int, blinds: list[int]) -> int:
+        '''
+        Blinds corner cases and what happens according to rules
+        1. SB doesn't cover but big blind covers - small blind goes all in, 
+           everything remains the same
+        2. BB covers - current bet is big blind's all in, everything else
+        remains the same (if no one raises small blind gets back their amount
+        - BB all in if it's > 0)
+        Both correctly handled (to show through test cases)
+        '''
         for blind_index, player_id in enumerate((
             small_blind_i, 
             (small_blind_i + 1) % self._player_num # big blind index
@@ -84,6 +90,7 @@ class HandManager:
                                 ) -> dict:
         '''
         Let us consider cases when all in, check, and raise should not be a player's option
+        (for the purpose of cleaner UI / obeying rules of the game)
         Check
         - player doesn't have enough to check so can only go all in
         All in 
@@ -275,6 +282,7 @@ class HandManager:
                         "id": player.id,
                         "pot_count": pot_count, # 0 for main pot
                         "new_balance": player.balance,
+                        "initial_balance": player.initial_balance,
                         "hand_strength": players_hand_strength[i][0]
                     }
                 money_checked = player.money_in
@@ -318,6 +326,7 @@ class HandManager:
                 "id": winner.id,
                 "pot_count": 0, # 0 for main pot
                 "new_balance": winner.balance,
+                "initial_balance": winner.initial_balance,
                 "hand_strength": None
             },) 
         elif self._num_players_folded + self._num_players_gone_max >= self._player_num - 1 \

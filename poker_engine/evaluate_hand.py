@@ -4,9 +4,13 @@ from enum import IntEnum
 from .players import Player
 from .cards import Card
 from typing import Optional
-'''
-TODO - optimization in complexity
-'''
+import random
+"""
+Hand evaluation implementation prioritizing correctness and code clarity.
+Uses pure algorithmic approach without pre-computed lookup tables or external storage.
+For high-frequency applications, consider specialized libraries like 
+ TwoPlusTwo evaluator with pre-computed tables.
+"""
 _true_rank_convert = {
     'A': 12, '2': 0, '3': 1, '4': 2, '5': 3, '6': 4, '7': 5, 
     '8': 6, '9': 7, '10': 8, 'J': 9, 'Q': 10, 'K': 11
@@ -131,7 +135,7 @@ def get_players_strength(comm_cards: list[Card],
     player_strengths: list[int] = []
 
     for card in comm_cards:
-        rank = _true_rank_convert[card.rank]
+        rank = card.val
         suite_map[card.suite].add(rank)
         rank_map[rank] += 1
 
@@ -141,12 +145,12 @@ def get_players_strength(comm_cards: list[Card],
             continue
         card1, card2 = player.hands
         for card in (card1, card2):
-            rank = _true_rank_convert[card.rank]
+            rank = card.val
             suite_map[card.suite].add(rank)
             rank_map[rank] += 1
         player_strengths.append(_get_hand_strength(suite_map, rank_map))
         for card in (card1, card2):
-            rank = _true_rank_convert[card.rank]
+            rank = card.val
             suite_map[card.suite].remove(rank)
             rank_map[rank] -= 1
             if rank_map[rank] == 0:

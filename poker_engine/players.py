@@ -4,6 +4,7 @@ from dataclasses import dataclass, asdict
 @dataclass
 class Player:
     id: int
+    initial_balance: int
     balance: int
     money_in: int
     hands: tuple[Card]

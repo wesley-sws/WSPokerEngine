@@ -6,6 +6,8 @@ from .players import Player
 from .cards import Card
 from .evaluate_hand import HandRank
 from .action_type import ActionType
+from .poker_manager_builder import PokerManagerBuilder
 
 __version__ = "0.1.0"
-__all__ = ["PokerManager", "HandManager", "Player", "Card", "HandRank", "ActionType"]
+__all__ = ["PokerManager", "HandManager", "Player", "Card", "HandRank", 
+           "ActionType", "PokerManagerBuilder"]
