@@ -1,13 +1,24 @@
 '''
 Run from root PYTHONPATH=. python poker_bot/equity_calculator.py
+
+Can be improved upon (potentially to be done later, not significant right now)
+- Pre-computed preflop tables
+- Smart early termination for obvious hands
+- Use ProcessPoolExecutor for parallel execution
 '''
 from phevaluator import evaluate_cards
 from poker_engine.cards import Card
 from typing import Optional
 import random
+import functools
+
 class EquityCalculator:
+    def __init__(self, iterations: int = 10000):
+        self.iterations = iterations
+
+    @functools.lru_cache(maxsize=5000)
     def _evaluate_hand_strength(self, cards: tuple[Card, Card], players: int, 
-                                board: Optional[list[Card]] = None, iterations=10000) -> float:
+                                board: Optional[list[Card]] = None) -> float:
         '''
         Calculates equity using monte carlo
         Use external library for evaluate_cards for speed purposes (as need to run many iterations)
@@ -24,7 +35,7 @@ class EquityCalculator:
             player_hand_rank = evaluate_cards(card1.id, card2.id, *board_used)
         unused_cards: list[int] = list(filter(lambda x: x not in used_cards, Card.ALL_CARDS_ID))
         new_cards_per_it: int = 5 - len(board_used) + (players - 1) * 2
-        for _ in range(iterations):
+        for _ in range(self.iterations):
             new_cards: list[int] = random.sample(unused_cards, new_cards_per_it)
             new_comm_cards = []
             if len(board_used) != 5:
@@ -36,5 +47,6 @@ class EquityCalculator:
                 ) > player_hand_rank for i in range(players - 1)
                     ):
                 wins += 1
-        return wins / iterations
+        return wins / self.iterations
 
+print(EquityCalculator()._evaluate_hand_strength((Card(50), Card(51)), 5))

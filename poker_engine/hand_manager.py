@@ -33,13 +33,13 @@ class HandManager:
         self._players: list[Player] = [
             Player(id, balance, balance, 0, 
                 (
-                    Card(cards_id.pop()),
-                    Card(cards_id.pop())
+                    Card.get_card(cards_id.pop()),
+                    Card.get_card(cards_id.pop())
                 )
             )
             for id, balance in players_info
         ]
-        self._comm_cards: list[Card] = [Card(card) for card in cards_id]
+        self._comm_cards: list[Card] = [Card.get_card(id) for id in cards_id]
         self._curr_bet = self._round_num = 0
         self._start_player_i = self._setup_blinds(small_blind_player_i, blinds)
         # now find the players of highest and second highest balance (use case 
