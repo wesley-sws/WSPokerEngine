@@ -1,5 +1,7 @@
 from .hand_manager import HandManager
 from collections.abc import Callable, Generator
+from typing import Optional
+from .players import Player
 
 '''
 Rules regarding rounds
@@ -17,56 +19,55 @@ from .hand_manager import HandManager
 
 class PokerManager:
     def __init__(self, blinds : list[int],
-                 player_balance: list[int],
-                 player_ids: list[int] | None = None,
+                 players: list[Player],
                  small_blind_i: int = 0):
-        assert len(player_balance) > 1
+        assert len(players) > 1
         assert len(blinds) == 2
-        assert HandManager.COMM_CARDS + len(player_balance) * HandManager.PLAYER_CARDS <= Card.DECK_SIZE
-        player_ids = player_ids or list(range(len(player_balance)))
-        self._players_info = list(zip(player_ids, player_balance))
-        self.small_blind_player_i = small_blind_i
+        assert HandManager.COMM_CARDS + len(players) * HandManager.PLAYER_CARDS <= Card.DECK_SIZE
+        self.players: list[Player] = players
+        self.small_blind_player_pos = small_blind_i
         self.blinds = blinds
         self._game_num = 0
     
     @property
     def status(self) -> dict:
         return {
-            "players_info": self._players_info,
-            "small_blind_player_i": self.small_blind_player_i,
+            "players_info": [player.status for player in self.players],
+            "small_blind_player_pos": self.small_blind_player_pos,
             "blinds": self.blinds,
             "game_num": self._game_num
         }
     
     def advance(self) -> Generator[HandManager, None, None]:
-        while len(self._players_info) > 1:
+        while len(self.players) > 1:
             new_hand = HandManager(
-                self._players_info,
-                self.small_blind_player_i, self.blinds
+                self.players,
+                self.small_blind_player_pos, self.blinds
             )
             yield new_hand
-            self.update_player_info(new_hand.players_balance)
+            self.update_for_new_round()
 
-    def update_player_info(self, updated_balance: int):
-        new_players_info = []
-        next_small_blind = None
-        for i, balance in enumerate(updated_balance):
-            if balance != 0:
-                if next_small_blind is None and i > self.small_blind_player_i:
-                    next_small_blind = len(new_players_info)
-                new_players_info.append((self._players_info[i][0], balance))
+    def update_for_new_round(self):
+        players_temp = self.players
+        self.players = []
+        next_small_blind: Optional[int] = None
+        for i, player in enumerate(players_temp):
+            if player.balance != 0:
+                if next_small_blind is None and i > self.small_blind_player_pos:
+                    next_small_blind = len(self.players)
+                player.reset_round()
+                self.players.append(player)
         self._game_num += 1
-        self.small_blind_player_i = 0 if next_small_blind is None \
+        self.small_blind_player_pos = 0 if next_small_blind is None \
                                         else next_small_blind
-        self._players_info = new_players_info
 
     def play_game(
         self,
         on_player_turn: Callable[[dict, dict, dict], dict],
-        on_new_hand: Callable[[dict, dict], None] | None = None,
-        on_round_start: Callable[[dict, dict], None] | None = None,
-        on_round_end: Callable[[dict, dict, dict], None] | None = None,
-        on_hand_end: Callable[[dict, dict, dict], None] | None = None,
+        on_new_hand: Optional[Callable[[dict, dict], None]] = None,
+        on_round_start: Optional[Callable[[dict, dict], None]] = None,
+        on_round_end: Optional[Callable[[dict, dict, dict], None]] = None,
+        on_hand_end: Optional[Callable[[dict, dict, dict], None]] = None,
     ):
         for hand in self.advance():
             if on_new_hand:

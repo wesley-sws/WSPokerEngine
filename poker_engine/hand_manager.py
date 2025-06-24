@@ -18,33 +18,29 @@ class HandManager:
     # Raise Rule - The minimum raise must be at least equal to the size of the previous raise IN THE SAME BETTING ROUND
     # The current implementation is for the TexasHoldem Variant, but more to be potentially implemented
     def __init__(
-        self, players_info: list[int], 
+        self, players: list[Player], 
         small_blind_player_i: int, blinds: list[int]
     ):
-        assert self.MIN_PLAYERS <= len(players_info) <= self.MAX_PLAYERS
-        self._player_num = len(players_info)
+        assert HandManager.MIN_PLAYERS <= len(players) <= HandManager.MAX_PLAYERS
+        self._players: list[Player] = players
+        self._player_num = len(players)
         self._num_players_gone_max = self._num_players_folded = 0
 
         cards_id: list[Card] = random.sample(
             Card.ALL_CARDS_ID, 
-            self.COMM_CARDS + self.PLAYER_CARDS * self._player_num
+            HandManager.COMM_CARDS + HandManager.PLAYER_CARDS * self._player_num
         )
-        # initialise players
-        self._players: list[Player] = [
-            Player(id, balance, balance, 0, 
-                (
+        for player in players:
+            player.hands = (
                     Card.get_card(cards_id.pop()),
                     Card.get_card(cards_id.pop())
                 )
-            )
-            for id, balance in players_info
-        ]
         self._comm_cards: list[Card] = [Card.get_card(id) for id in cards_id]
         self._curr_bet = self._round_num = 0
         self._start_player_i = self._setup_blinds(small_blind_player_i, blinds)
         # now find the players of highest and second highest balance (use case 
         # can be seen later in the betting_round function)
-        self._balance_heap = [-balance for _, balance in players_info]
+        self._balance_heap = [-player.initial_balance for player in self._players]
         heapq.heapify(self._balance_heap)
         self._highest_balance = -heapq.heappop(self._balance_heap)
         self._snd_highest_balance = -heapq.heappop(self._balance_heap)
@@ -191,7 +187,7 @@ class HandManager:
         and going all in, more to be done on this, can test just by 
         playing a game where you keep going all in / check / fold
         '''
-        if self._round_num >= self.ROUNDS:
+        if self._round_num >= HandManager.ROUNDS:
             raise ValueError("Game has ended")
         # to bypass the initial condition to enter for loop at first occurence
         ending_player_i = None
@@ -278,6 +274,7 @@ class HandManager:
                     winner_rank but winner_cumm == 0 so it shouldn't yield
                     '''
                     player.balance += int(winner_cumm)
+                    
                     yield {
                         "id": player.id,
                         "pot_count": pot_count, # 0 for main pot
@@ -310,11 +307,11 @@ class HandManager:
         Checks if the game has ended and performs game-finalizing logic.
         Returns True if the game is over, False otherwise.
         """
-        if self._round_num > self.ROUNDS:
+        if self._round_num > HandManager.ROUNDS:
             return True
         
         if self._num_players_folded == self._player_num - 1:
-            self._round_num = self.ROUNDS + 1
+            self._round_num = HandManager.ROUNDS + 1
             winner: Player = next(player for player in self._players if not player.folded)
             ''' TODO
             Can improve complexity by having total_pot as a field and adding to
@@ -330,8 +327,8 @@ class HandManager:
                 "hand_strength": None
             },) 
         elif self._num_players_folded + self._num_players_gone_max >= self._player_num - 1 \
-          or self._round_num == self.ROUNDS:
-            self._round_num = self.ROUNDS + 1
+          or self._round_num == HandManager.ROUNDS:
+            self._round_num = HandManager.ROUNDS + 1
             self._winners = self._showdown()
         else:
             return False

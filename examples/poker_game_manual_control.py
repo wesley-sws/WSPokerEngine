@@ -29,14 +29,22 @@ Note both the hand and game variables provide a get_status method that can
 be called anytime
 """
 from poker_engine.poker_manager import PokerManager
+from poker_engine.poker_manager_builder import PokerManagerBuilder
+from poker_engine.players import Player
+
 import utils
-game: PokerManager = PokerManager([5, 10], [200, 300, 400, 500, 600])
+players: list[Player] = [
+    Player(init_balance)
+    for init_balance in [6, 2, 400, 500, 600]    
+]
+game: PokerManager = \
+    PokerManagerBuilder().with_blinds(5, 10).add_players(players).build()
 for hand in game.advance():
     game_status = game.status
     print("Game Number", game_status["game_num"])
-    for (id, balance) in game_status["players_info"]:
-        print(f"Player {id} has balance {balance}")
-    print("Small blind player:", game_status["small_blind_player_i"])
+    for player_stats in game_status["players_info"]:
+        print(f"Player {player_stats["id"]} has balance {player_stats["balance"]}")
+    print("Small blind player:", game_status["small_blind_player_pos"])
     print("The blinds are:", game_status["blinds"])
     while not hand.is_complete():
         hand_status = hand.status
