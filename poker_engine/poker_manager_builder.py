@@ -9,7 +9,6 @@ class PokerManagerBuilder:
     def __init__(self):
         self._blinds: Optional[list[int]] = None
         self._players: list[int] = []
-        self._player_ids: Optional[list[int]] = None
         self._small_blind_index: int = 0
     
     def with_blinds(self, small_blind: int, big_blind: int) -> 'PokerManagerBuilder':
@@ -54,7 +53,6 @@ class PokerManagerBuilder:
         """Set which player position starts as small blind (0-indexed)."""
         if position < 0:
             raise ValueError("Small blind position must be non-negative")
-        
         self._small_blind_index = position
         return self
     

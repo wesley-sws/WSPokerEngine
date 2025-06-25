@@ -78,7 +78,6 @@ class HandManager:
         return {
             "round_num": self._round_num,
             "revealed_comm_cards": self._comm_cards[:self._round_to_comm_cards[min(3, self._round_num)]],
-            "players_status": [player.status for player in self._players]
         }
     
     def _get_available_options(self, curr_player: Player, last_full_raise: int, 
@@ -215,7 +214,7 @@ class HandManager:
                 }
                 '''
                 user_option = yield {
-                    "player_status": player.status,
+                    "player": player,
                     "current_bet": self._curr_bet,
                     "options": options,
                     "last_action_result": last_action_result # None at first yield

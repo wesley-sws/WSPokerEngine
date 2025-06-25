@@ -64,11 +64,13 @@ class PokerManager:
     def play_game(
         self,
         on_player_turn: Callable[[dict, dict, dict], dict],
+        on_player_turn_start: Callable[[dict, dict, dict], None] = None,
         on_new_hand: Optional[Callable[[dict, dict], None]] = None,
         on_round_start: Optional[Callable[[dict, dict], None]] = None,
         on_round_end: Optional[Callable[[dict, dict, dict], None]] = None,
         on_hand_end: Optional[Callable[[dict, dict, dict], None]] = None,
     ):
+        '''Convenience wrapper (limited control)'''
         for hand in self.advance():
             if on_new_hand:
                 on_new_hand(hand.status, self.status)
@@ -79,7 +81,15 @@ class PokerManager:
                 state = next(curr_round)
                 while True:
                     # The caller must send the user_dict back
-                    user_dict = on_player_turn(state, hand.status, self.status)
+                    player: Player = state["player"]
+                    state.pop("player")
+                    state["player_status"] = player.status
+                    if on_player_turn_start:
+                        on_player_turn_start(state, hand.status, self.status)
+                    user_dict = \
+                        player.make_decision(state, hand.status, self.status) \
+                        if hasattr(player, "make_decision") \
+                        else on_player_turn(state, hand.status, self.status)
                     try:
                         state = curr_round.send(user_dict)
                     except StopIteration as e:

@@ -85,12 +85,9 @@ def on_hand_end(winners, hand_status, _):
                 f"Your new balance is {winner['new_balance']}."
             )
 
-players: list[Player] = [
-    Player(init_balance)
-    for init_balance in [6, 2, 400, 500, 600]    
-]
+init_balances: list[int] = [6, 2, 400, 500, 600]    
 game: PokerManager = \
-    PokerManagerBuilder().with_blinds(5, 10).add_players(players).build()
+    PokerManagerBuilder().with_blinds(5, 10).add_players_by_balance(init_balances).build()
 game.play_game(
     on_new_hand=on_new_hand,
     on_player_turn=on_player_turn,
