@@ -6,6 +6,7 @@ application using basic console input and output through manual control.
 Manual control allows more flexibility, eg can increase blinds every 10 minutes
 
 General Pattern of use (after creating game: PokerManager):
+TODO: Change to adapt to new use
 
 for hand in game.advance():
     <may want to do game.get_status() here>
@@ -55,7 +56,7 @@ for hand in game.advance():
             "have not been revealed" if len(comm) == 0 else 
             f"are {', '.join(map(str, comm))}"
         )
-        for player_dict in hand_status["players_status"]:
+        for player_dict in game_status["players_info"]:
             print(utils.get_player_status_str(player_dict, False))
         curr_round = hand.betting_round()
         state = next(curr_round)
@@ -64,22 +65,29 @@ for hand in game.advance():
                 print(
                     f"Player {last_action["id"]} has put {last_action["last_put"]} and now has {last_action["new_balance"]}"
                 )
-            print("Your Turn", utils.get_player_status_str(state["player_status"], True))
+            player: Player = state["player"]
+            print("Your Turn", utils.get_player_status_str(player.status, True))
             print("The current bet is", state["current_bet"])
-            user_input = input(
-                "Your options are " + 
-                utils.get_options_str(state["options"]) + '\n'
-            )
-            if user_input[0] not in utils.initial_to_ActionType:
-                raise ValueError
-            user_action = utils.initial_to_ActionType[user_input[0]]
-            user_dict = {"action": user_action}
-            if user_input[0] == "R":
-                user_dict["amount"] = int(user_input[2:])
+
+            if hasattr(player, "make_decision"):
+                user_dict = player.make_decision(state, hand.status, game_status)
+            else:  
+                user_input = input(
+                    "Your options are " + 
+                    utils.get_options_str(state["options"]) + '\n'
+                )
+                if user_input[0] not in utils.initial_to_ActionType:
+                    raise ValueError
+                user_action = utils.initial_to_ActionType[user_input[0]]
+                user_dict = {"action": user_action}
+                if user_input[0] == "R":
+                    user_dict["amount"] = int(user_input[2:])
             try:
                 state = curr_round.send(user_dict)
+                game_status = game.status
             except StopIteration as e:
                 last_action = e.value
+                game_status = game.status
                 print(
                     f"Player {last_action["id"]} has put {last_action["last_put"]} and now has {last_action["new_balance"]}"
                 )

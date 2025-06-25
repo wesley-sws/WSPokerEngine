@@ -54,13 +54,16 @@ def on_round_end(last_action, *_):
         f"Player {last_action["id"]} has put {last_action["last_put"]} and now has {last_action["new_balance"]}"
     )
 
-def on_player_turn(state, *_):
+def on_player_turn_start(state, *_):
     if (last_action := state["last_action_result"]) is not None:
         print(
             f"Player {last_action["id"]} has put {last_action["last_put"]} and now has {last_action["new_balance"]}"
         )
     print("Your Turn", utils.get_player_status_str(state["player_status"], True))
     print("The current bet is", state["current_bet"])
+
+
+def on_player_turn(state, *_):
     user_input = input(
         "Your options are " + 
         utils.get_options_str(state["options"]) + '\n'
@@ -93,5 +96,6 @@ game.play_game(
     on_player_turn=on_player_turn,
     on_round_start=on_round_start,
     on_round_end=on_round_end,
-    on_hand_end=on_hand_end
+    on_hand_end=on_hand_end,
+    on_player_turn_start=on_player_turn_start
 )
