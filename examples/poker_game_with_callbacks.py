@@ -4,11 +4,14 @@ Run PYTHONPATH=. python examples/poker_game_with_callbacks.py from root director
 This file demonstrates how to use the library to create a text-based poker 
 application using basic console input and output through the play_game method
 in the PokerManager class.
+
+Note that users can inherit the Player class with a make_decision method to adapt
+the decision maker for the player/bot. If this is done for all players,
+then the play_game wrapper will work without providing an on_player_turn callback.
 """
 from poker_engine.poker_manager import PokerManager
 import utils
 from poker_engine.action_type import *
-from poker_engine.players import Player
 from poker_engine import PokerManagerBuilder
 
 # class PlayerCLI(Player):
@@ -54,13 +57,16 @@ def on_round_end(last_action, *_):
         f"Player {last_action["id"]} has put {last_action["last_put"]} and now has {last_action["new_balance"]}"
     )
 
-def on_player_turn_start(state, *_):
+def on_player_turn_start(state, hand_status, *_):
     if (last_action := state["last_action_result"]) is not None:
         print(
             f"Player {last_action["id"]} has put {last_action["last_put"]} and now has {last_action["new_balance"]}"
         )
     print("Your Turn", utils.get_player_status_str(state["player_status"], True))
     print("The current bet is", state["current_bet"])
+    print(f"It's {state["current_bet"] - state["player_status"]["money_in"]}" 
+          " to call (or all-in if insufficient funds)")
+    print("The pot size is", hand_status["pot_size"])
 
 
 def on_player_turn(state, *_):
@@ -88,7 +94,7 @@ def on_hand_end(winners, hand_status, _):
                 f"Your new balance is {winner['new_balance']}."
             )
 
-init_balances: list[int] = [6, 2, 400, 500, 600]    
+init_balances: list[int] = [200, 300, 400, 500, 600]    
 game: PokerManager = \
     PokerManagerBuilder().with_blinds(5, 10).add_players_by_balance(init_balances).build()
 game.play_game(

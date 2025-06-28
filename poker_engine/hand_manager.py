@@ -19,7 +19,7 @@ class HandManager:
     # The current implementation is for the TexasHoldem Variant, but more to be potentially implemented
     def __init__(
         self, players: list[Player], 
-        small_blind_player_i: int, blinds: list[int]
+        small_blind_player_pos: int, blinds: list[int]
     ):
         assert HandManager.MIN_PLAYERS <= len(players) <= HandManager.MAX_PLAYERS
         self._players: list[Player] = players
@@ -36,15 +36,18 @@ class HandManager:
                     Card.get_card(cards_id.pop())
                 )
         self._comm_cards: list[Card] = [Card.get_card(id) for id in cards_id]
-        self._curr_bet = self._round_num = 0
-        self._start_player_i = self._setup_blinds(small_blind_player_i, blinds)
+        self._curr_bet = self._round_num = self.pot = 0
+        self._start_player_pos = self._setup_blinds(small_blind_player_pos, blinds)
+        # Note current player pos will always return the position of the small blind player
+        # BETWEEN ROUNDS or after final round, otherwise the current player in turn
+        self._current_player_pos = self._start_player_pos
         # now find the players of highest and second highest balance (use case 
         # can be seen later in the betting_round function)
         self._balance_heap = [-player.initial_balance for player in self._players]
         heapq.heapify(self._balance_heap)
         self._highest_balance = -heapq.heappop(self._balance_heap)
         self._snd_highest_balance = -heapq.heappop(self._balance_heap)
-        self._small_blind_player = small_blind_player_i
+        self._small_blind_player_pos = small_blind_player_pos
         self.big_blind = blinds[1]
         self._winners = []
     
@@ -68,6 +71,7 @@ class HandManager:
                 blind_actual = player.balance
                 player.gone_max = True
             player.money_in += blind_actual
+            self.pot += blind_actual
             player.balance -= blind_actual
             if blind_index == 1: # big blind
                 self._curr_bet = blind_actual
@@ -78,6 +82,9 @@ class HandManager:
         return {
             "round_num": self._round_num,
             "revealed_comm_cards": self._comm_cards[:self._round_to_comm_cards[min(3, self._round_num)]],
+            "pot_size": self.pot,
+            "players_in": self._player_num - self._num_players_folded,
+            "current_player_pos": self._current_player_pos
         }
     
     def _get_available_options(self, curr_player: Player, last_full_raise: int, 
@@ -143,6 +150,7 @@ class HandManager:
                 self._snd_highest_balance = -heapq.heappop(self._balance_heap)
         elif user_option["action"] == ActionType.ALL_IN:
             player.money_in += player.balance
+            self.pot += player.balance
             if player.money_in > self._curr_bet:
                 self._curr_bet = player.money_in
                 player_raised = True
@@ -153,6 +161,7 @@ class HandManager:
         elif user_option["action"] == ActionType.CALL:
             player.balance -= remaining_to_call
             player.money_in += remaining_to_call
+            self.pot += remaining_to_call
             assert player.money_in == self._curr_bet
             if self._curr_bet == self._snd_highest_balance:
                 player.gone_max = True
@@ -171,7 +180,8 @@ class HandManager:
             new_in = new_raised + remaining_to_call
             player.balance -= new_in
             player.money_in += new_in
-            self._curr_bet = self._curr_bet + new_raised
+            self.pot += new_in
+            self._curr_bet += new_raised
             if only_richest and new_raised + self._curr_bet == self._snd_highest_balance \
                 or player.balance == 0:
                 player.gone_max = True
@@ -190,13 +200,13 @@ class HandManager:
             raise ValueError("Game has ended")
         # to bypass the initial condition to enter for loop at first occurence
         ending_player_i = None
-        curr_player_i = self._start_player_i
+        self._current_player_pos = self._start_player_pos
         last_full_raise = self.big_blind
         last_action_result = None
-        while ending_player_i is None or curr_player_i != ending_player_i:
+        while ending_player_i is None or self._current_player_pos != ending_player_i:
             if ending_player_i is None:
-                ending_player_i = curr_player_i
-            player: Player = self._players[curr_player_i]
+                ending_player_i = self._current_player_pos
+            player: Player = self._players[self._current_player_pos]
             initial_balance = player.balance
             # F for Fold, C for Check, A for All in, R,<N> to Raise by N
             if not player.folded and not player.gone_max:
@@ -225,7 +235,7 @@ class HandManager:
                     remaining_to_call, only_richest
                 )
                 if player_raised:
-                    ending_player_i = curr_player_i
+                    ending_player_i = self._current_player_pos
 
                 last_action_result = {
                     "id": player.id,
@@ -234,8 +244,8 @@ class HandManager:
                 }
                 if to_break:
                     break
-            curr_player_i = (curr_player_i + 1) % self._player_num
-        self._start_player_i = self._small_blind_player
+            self._current_player_pos = (self._current_player_pos + 1) % self._player_num
+        self._current_player_pos = self._start_player_pos = self._small_blind_player_pos
         self._round_num += 1
         return last_action_result
 
@@ -312,12 +322,7 @@ class HandManager:
         if self._num_players_folded == self._player_num - 1:
             self._round_num = HandManager.ROUNDS + 1
             winner: Player = next(player for player in self._players if not player.folded)
-            ''' TODO
-            Can improve complexity by having total_pot as a field and adding to
-            it at _handle_user_option instead of summing it here
-            '''
-            total_in = sum(player.money_in for player in self._players)
-            winner.balance += total_in
+            winner.balance += self.pot
             self._winners = ({
                 "id": winner.id,
                 "pot_count": 0, # 0 for main pot

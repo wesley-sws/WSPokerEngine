@@ -1,7 +1,7 @@
 from .hand_manager import HandManager
 from collections.abc import Callable, Generator
 from typing import Optional
-from .players import Player
+from .players import *
 
 '''
 Rules regarding rounds
@@ -32,7 +32,7 @@ class PokerManager:
     @property
     def status(self) -> dict:
         return {
-            "players_info": [player.status for player in self.players],
+            "players_info": [player.public_status for player in self.players],
             "small_blind_player_pos": self.small_blind_player_pos,
             "blinds": self.blinds,
             "game_num": self._game_num
@@ -63,14 +63,16 @@ class PokerManager:
 
     def play_game(
         self,
-        on_player_turn: Callable[[dict, dict, dict], dict],
+        on_player_turn: Callable[[dict, dict, dict], dict] = None,
         on_player_turn_start: Callable[[dict, dict, dict], None] = None,
         on_new_hand: Optional[Callable[[dict, dict], None]] = None,
         on_round_start: Optional[Callable[[dict, dict], None]] = None,
         on_round_end: Optional[Callable[[dict, dict, dict], None]] = None,
         on_hand_end: Optional[Callable[[dict, dict, dict], None]] = None,
     ):
-        '''Convenience wrapper (limited control)'''
+        '''
+        Convenience wrapper (limited control)
+        '''
         for hand in self.advance():
             if on_new_hand:
                 on_new_hand(hand.status, self.status)
@@ -81,15 +83,24 @@ class PokerManager:
                 state = next(curr_round)
                 while True:
                     # The caller must send the user_dict back
+                    '''
+                    in the callback method where user calls play_game, the player
+                    object is inaccessible to user, though that is not true
+                    if user uses manual control (see examples)
+                    '''
                     player: Player = state["player"]
                     state.pop("player")
-                    state["player_status"] = player.status
+                    state["player_status"] = player.public_status
+                    state["player_status"]["hands"] = player.hands
                     if on_player_turn_start:
                         on_player_turn_start(state, hand.status, self.status)
-                    user_dict = \
-                        player.make_decision(state, hand.status, self.status) \
-                        if hasattr(player, "make_decision") \
-                        else on_player_turn(state, hand.status, self.status)
+                    if isinstance(player, AutonomousPlayer):
+                        state.pop("player_status")
+                        user_dict = player.make_decision(state, hand.status, self.status)
+                    elif on_player_turn is not None:
+                        user_dict = on_player_turn(state, hand.status, self.status)
+                    else:
+                        raise ValueError(f"Player {player.id} has no make_decision method and no callback provided")
                     try:
                         state = curr_round.send(user_dict)
                     except StopIteration as e:

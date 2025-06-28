@@ -31,7 +31,7 @@ be called anytime
 """
 from poker_engine.poker_manager import PokerManager
 from poker_engine.poker_manager_builder import PokerManagerBuilder
-from poker_engine.players import Player
+from poker_engine.players import *
 
 import utils
 players: list[Player] = [
@@ -66,11 +66,12 @@ for hand in game.advance():
                     f"Player {last_action["id"]} has put {last_action["last_put"]} and now has {last_action["new_balance"]}"
                 )
             player: Player = state["player"]
-            print("Your Turn", utils.get_player_status_str(player.status, True))
+            state.pop("player")
+            print("Your Turn", utils.get_player_status_str(player.public_status, True))
             print("The current bet is", state["current_bet"])
 
-            if hasattr(player, "make_decision"):
-                user_dict = player.make_decision(state, hand.status, game_status)
+            if isinstance(player, AutonomousPlayer):
+                user_dict = player.make_decision(state, hand.status, game.status)
             else:  
                 user_input = input(
                     "Your options are " + 
