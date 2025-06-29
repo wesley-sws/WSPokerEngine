@@ -13,6 +13,7 @@ from poker_engine.poker_manager import PokerManager
 import utils
 from poker_engine.action_type import *
 from poker_engine import PokerManagerBuilder
+from poker_engine.game_runner import GameRunner
 
 # class PlayerCLI(Player):
 #     def make_decision(self, _, current_bet, options, last_action):
@@ -97,7 +98,8 @@ def on_hand_end(winners, hand_status, _):
 init_balances: list[int] = [200, 300, 400, 500, 600]    
 game: PokerManager = \
     PokerManagerBuilder().with_blinds(5, 10).add_players_by_balance(init_balances).build()
-game.play_game(
+runner: GameRunner = GameRunner(game)
+runner.play_game(
     on_new_hand=on_new_hand,
     on_player_turn=on_player_turn,
     on_round_start=on_round_start,
